@@ -1,70 +1,144 @@
-# Getting Started with Create React App
+# Task Master AI - 프로젝트 대시보드
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React 기반의 프로젝트 작업 관리 대시보드 애플리케이션입니다. 작업 시각화, 상태 관리, 진행률 추적 기능을 제공합니다.
 
-## Available Scripts
+## 주요 기능
 
-In the project directory, you can run:
+### 📊 대시보드 기능
+- **작업 시각화**: 카드 뷰와 리스트 뷰로 작업 표시
+- **진행률 추적**: 실시간 완료율 및 상태별 통계
+- **필터링 & 검색**: 상태, 우선순위별 필터링 및 텍스트 검색
+- **정렬 기능**: ID, 제목, 상태, 우선순위, 수동 정렬 지원
+- **의존성 기반 정렬**: 작업 간 의존성을 고려한 토폴로지 정렬
 
-### `npm start`
+### 🔧 작업 관리
+- **상태 관리**: pending → in-progress → review → done/completed
+- **우선순위**: critical, high, medium, low
+- **하위 작업**: 서브태스크 지원 및 진행률 표시
+- **의존성 관리**: 작업 간 의존성 추적
+- **상세 정보**: 작업 설명, 상세 내용, 테스트 전략 표시
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### 📁 데이터 입력 방식
+1. **JSON 직접 입력**: 대시보드에서 JSON 데이터 직접 붙여넣기
+2. **프로젝트 파일 로드**: `/public/projects/` 폴더의 사전 정의된 프로젝트 로드
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## 기술 스택
 
-### `npm test`
+- **Frontend**: React 19.1.0
+- **스타일링**: Tailwind CSS 3.4.17
+- **아이콘**: Lucide React 0.525.0
+- **빌드 도구**: Create React App
+- **테스트**: Jest + React Testing Library
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## 설치 및 실행
 
-### `npm run build`
+### 사전 요구사항
+- Node.js (권장: v14 이상)
+- npm 또는 yarn
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### 설치
+```bash
+npm install
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 개발 서버 실행
+```bash
+npm start
+```
+브라우저에서 [http://localhost:3000](http://localhost:3000)으로 접속
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### 프로덕션 빌드
+```bash
+npm run build
+```
 
-### `npm run eject`
+### 테스트 실행
+```bash
+npm test
+```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## 프로젝트 구조
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```
+project-dashboard/
+├── public/
+│   └── projects/              # 프로젝트 데이터 파일
+│       ├── cpue_prediction/
+│       │   └── tasks.json
+│       └── test/
+│           └── tasks.json
+├── src/
+│   ├── App.js                 # 루트 컴포넌트
+│   ├── ProjectDashboard.jsx   # 메인 대시보드 컴포넌트
+│   └── index.js
+├── package.json
+└── README.md
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 데이터 구조
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 작업 데이터 형식
+```json
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1.1",
+        "title": "작업 제목",
+        "description": "작업 설명",
+        "status": "pending",
+        "priority": "high",
+        "dependencies": ["1.0"],
+        "details": "상세 정보",
+        "testStrategy": "테스트 전략",
+        "subtasks": [
+          {
+            "id": "1.1.1",
+            "title": "하위 작업",
+            "description": "하위 작업 설명",
+            "status": "done"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
 
-## Learn More
+### 지원되는 상태
+- `pending`: 대기
+- `in-progress`: 진행 중
+- `review`: 검토
+- `done`: 완료
+- `completed`: 완성
+- `deferred`: 연기
+- `blocked`: 차단됨
+- `cancelled`: 취소됨
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+### 우선순위 레벨
+- `critical`: 긴급
+- `high`: 높음
+- `medium`: 보통
+- `low`: 낮음
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## 사용 방법
 
-### Code Splitting
+### 1. JSON 데이터 입력
+1. 대시보드 접속
+2. "Paste JSON Data" 영역에 작업 데이터 붙여넣기
+3. "Load Project Data" 버튼 클릭
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 2. 프로젝트 파일 로드
+1. "Available Projects" 섹션에서 프로젝트 선택
+2. "Connect" 버튼 클릭하여 로드
 
-### Analyzing the Bundle Size
+### 3. 작업 관리
+- **필터링**: 상태, 우선순위별 필터 적용
+- **검색**: 제목이나 설명으로 작업 검색
+- **정렬**: 다양한 기준으로 작업 정렬
+- **상태 변경**: 카드나 리스트에서 직접 상태 변경
+- **상세 보기**: "Details" 버튼으로 작업 상세 정보 확인
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## 라이선스
 
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
