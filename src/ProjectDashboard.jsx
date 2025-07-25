@@ -305,12 +305,64 @@ const ProjectDashboard = () => {
     setTasksData({ ...tasksData, tasks: updatedTasks });
   };
 
+  // 토폴로지 정렬 함수 (의존성 기반)
+  const getTopologicalOrder = (tasks) => {
+    const taskMap = new Map(tasks.map(task => [task.id, task]));
+    const visited = new Set();
+    const visiting = new Set();
+    const result = [];
+
+    const visit = (taskId) => {
+      if (visiting.has(taskId)) {
+        // 순환 의존성 감지 - 건너뛰기
+        console.warn(`Circular dependency detected involving task ${taskId}`);
+        return true;
+      }
+      if (visited.has(taskId)) {
+        return true;
+      }
+
+      visiting.add(taskId);
+      const task = taskMap.get(taskId);
+      
+      if (task?.dependencies?.length > 0) {
+        for (const depId of task.dependencies) {
+          if (taskMap.has(depId)) {
+            visit(depId);
+          }
+        }
+      }
+
+      visiting.delete(taskId);
+      visited.add(taskId);
+      result.unshift(taskId); // 앞쪽에 추가하여 의존성이 먼저 오도록
+      return true;
+    };
+
+    // 모든 작업에 대해 방문
+    for (const task of tasks) {
+      if (!visited.has(task.id)) {
+        visit(task.id);
+      }
+    }
+
+    return result;
+  };
+
+  // 의존성 기반 정렬 초기화
+  const initializeDependencyOrder = () => {
+    setSortBy('manual');
+    const dependencyOrder = getTopologicalOrder(tasksData.tasks);
+    setManualOrder(dependencyOrder);
+  };
+
   // 수동 정렬 함수
   const moveTask = (taskId, direction) => {
     if (sortBy !== 'manual') {
       setSortBy('manual');
-      // 현재 필터링된 순서를 기준으로 수동 정렬 배열 초기화
-      setManualOrder(filteredTasks.map(task => task.id));
+      // 의존성 기반 토폴로지 정렬로 초기화
+      const dependencyOrder = getTopologicalOrder(tasksData.tasks);
+      setManualOrder(dependencyOrder);
       return;
     }
 
@@ -614,6 +666,14 @@ const ProjectDashboard = () => {
             >
               {sortOrder === 'asc' ? '↑' : '↓'}
             </button>
+            
+            <button
+              onClick={initializeDependencyOrder}
+              className="px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-blue-50 transition-colors text-blue-600 hover:text-blue-700"
+              title="Sort by Dependencies (Topological Order)"
+            >
+              🔗 Dependency Order
+            </button>
           </div>
           
           <div className="mt-3 text-sm text-gray-500">
@@ -646,7 +706,7 @@ const ProjectDashboard = () => {
                   
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
                     {task.dependencies?.length > 0 && (
-                      <span>Dependencies: {task.dependencies.length}</span>
+                      <span>Dependencies: {task.dependencies.join(', ')}</span>
                     )}
                   </div>
                   
@@ -752,7 +812,7 @@ const ProjectDashboard = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {task.dependencies?.length || 0}
+                        {task.dependencies?.length > 0 ? task.dependencies.join(', ') : '0'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex gap-2 items-center">
