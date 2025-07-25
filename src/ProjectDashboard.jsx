@@ -349,6 +349,59 @@ const ProjectDashboard = () => {
     return result;
   };
 
+  // Subtask 토폴로지 정렬 함수
+  const getSubtaskTopologicalOrder = (subtasks, parentTaskId) => {
+    if (!subtasks || subtasks.length === 0) return [];
+    
+    const subtaskMap = new Map(subtasks.map(subtask => [subtask.id, subtask]));
+    const visited = new Set();
+    const visiting = new Set();
+    const result = [];
+
+    const visit = (subtaskId) => {
+      if (visiting.has(subtaskId)) {
+        console.warn(`Circular dependency detected in subtask ${subtaskId} of task ${parentTaskId}`);
+        return true;
+      }
+      if (visited.has(subtaskId)) {
+        return true;
+      }
+
+      visiting.add(subtaskId);
+      const subtask = subtaskMap.get(subtaskId);
+      
+      if (subtask?.dependencies?.length > 0) {
+        for (const depId of subtask.dependencies) {
+          // 의존성이 문자열 형태인 경우 처리 (예: "9.1")
+          let actualDepId = depId;
+          if (typeof depId === 'string' && depId.includes('.')) {
+            // "9.1" 형태에서 "1"만 추출
+            actualDepId = parseInt(depId.split('.')[1]);
+          }
+          
+          if (subtaskMap.has(actualDepId)) {
+            visit(actualDepId);
+          }
+        }
+      }
+
+      visiting.delete(subtaskId);
+      visited.add(subtaskId);
+      result.push(subtaskId); // unshift에서 push로 변경하여 역순으로 정렬
+      return true;
+    };
+
+    // 모든 subtask에 대해 방문
+    for (const subtask of subtasks) {
+      if (!visited.has(subtask.id)) {
+        visit(subtask.id);
+      }
+    }
+
+    // 정렬된 ID 순서에 따라 실제 subtask 객체들을 반환
+    return result.map(id => subtasks.find(st => st.id === id)).filter(Boolean);
+  };
+
   // 의존성 기반 정렬 초기화
   const initializeDependencyOrder = () => {
     setSortBy('manual');
@@ -969,7 +1022,7 @@ const ProjectDashboard = () => {
                           Subtasks ({selectedTask.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length}/{selectedTask.subtasks.length})
                         </h4>
                         <div className="space-y-3">
-                          {selectedTask.subtasks.map((subtask) => (
+                          {getSubtaskTopologicalOrder(selectedTask.subtasks, selectedTask.id).map((subtask) => (
                             <div key={subtask.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-2">
@@ -978,6 +1031,17 @@ const ProjectDashboard = () => {
                                     {getStatusIcon(subtask.status)}
                                     <span className="ml-1 capitalize">{subtask.status}</span>
                                   </span>
+                                  {subtask.dependencies && subtask.dependencies.length > 0 && (
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-gray-400">depends on:</span>
+                                      {subtask.dependencies.map((depId, index) => (
+                                        <span key={depId} className="text-xs font-mono text-gray-600 bg-yellow-50 px-1 py-0.5 rounded border border-yellow-200">
+                                          #{typeof depId === 'string' && depId.includes('.') ? depId : `${selectedTask.id}.${depId}`}
+                                          {index < subtask.dependencies.length - 1 && <span className="text-gray-400">,</span>}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                               <h5 className="font-medium text-gray-900 mb-2">{subtask.title}</h5>
