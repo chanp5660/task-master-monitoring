@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, Calendar, CheckCircle, Clock, AlertCircle, BarChart3, PieChart, Eye, Edit, Save, X, FileText, Users, Target, TrendingUp, Play, Pause, RefreshCw, Ban, Plus, Trash2, ExternalLink, Download } from 'lucide-react';
+import { Search, Filter, Calendar, CheckCircle, Clock, AlertCircle, BarChart3, PieChart, Eye, Edit, Save, X, FileText, Users, Target, TrendingUp, Play, Pause, RefreshCw, Ban, Plus, Trash2, ExternalLink, Download, ChevronUp, ChevronDown } from 'lucide-react';
 
 const ProjectDashboard = () => {
   const [tasksData, setTasksData] = useState(null);
@@ -9,6 +9,9 @@ const ProjectDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('cards');
   const [jsonInput, setJsonInput] = useState('');
+  const [sortBy, setSortBy] = useState('id');
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [manualOrder, setManualOrder] = useState([]);
   
   // 프로젝트 관리 상태
   const [projects, setProjects] = useState([]);
@@ -122,6 +125,8 @@ const ProjectDashboard = () => {
       
       setTasksData(tasksToSet);
       setCurrentProject(project);
+      // 새 프로젝트 로드 시 수동 정렬 초기화
+      setManualOrder([]);
       console.log(`Project "${project.name}" loaded successfully!`);
     } catch (error) {
       console.error('Load project error:', error);
@@ -165,6 +170,8 @@ const ProjectDashboard = () => {
       
       setTasksData(tasksToSet);
       setCurrentProject(null); // 직접 입력한 경우는 currentProject를 null로 설정
+      // JSON 입력 시 수동 정렬 초기화
+      setManualOrder([]);
       setJsonInput('');
       setLoadError(null);
     } catch (error) {
@@ -224,7 +231,7 @@ const ProjectDashboard = () => {
   const filteredTasks = useMemo(() => {
     if (!tasksData?.tasks) return [];
     
-    return tasksData.tasks.filter(task => {
+    let filtered = tasksData.tasks.filter(task => {
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
       const matchesSearch = searchTerm === '' || 
@@ -233,7 +240,36 @@ const ProjectDashboard = () => {
       
       return matchesStatus && matchesPriority && matchesSearch;
     });
-  }, [tasksData, filterStatus, filterPriority, searchTerm]);
+
+    // 정렬 로직
+    const getSortValue = (task, sortBy) => {
+      switch (sortBy) {
+        case 'id': return task.id;
+        case 'title': return task.title.toLowerCase();
+        case 'status': return task.status;
+        case 'priority': 
+          const priorityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
+          return priorityOrder[task.priority] || 0;
+        case 'manual':
+          const currentOrder = manualOrder.length > 0 ? manualOrder : tasksData.tasks.map(t => t.id);
+          return currentOrder.indexOf(task.id);
+        default: return task.id;
+      }
+    };
+
+    filtered.sort((a, b) => {
+      const aValue = getSortValue(a, sortBy);
+      const bValue = getSortValue(b, sortBy);
+      
+      let comparison = 0;
+      if (aValue < bValue) comparison = -1;
+      else if (aValue > bValue) comparison = 1;
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [tasksData, filterStatus, filterPriority, searchTerm, sortBy, sortOrder, manualOrder]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -267,6 +303,30 @@ const ProjectDashboard = () => {
         : task
     );
     setTasksData({ ...tasksData, tasks: updatedTasks });
+  };
+
+  // 수동 정렬 함수
+  const moveTask = (taskId, direction) => {
+    if (sortBy !== 'manual') {
+      setSortBy('manual');
+      // 현재 필터링된 순서를 기준으로 수동 정렬 배열 초기화
+      setManualOrder(filteredTasks.map(task => task.id));
+      return;
+    }
+
+    const currentOrder = manualOrder.length > 0 ? manualOrder : filteredTasks.map(task => task.id);
+    const currentIndex = currentOrder.indexOf(taskId);
+    
+    if (currentIndex === -1) return;
+
+    const newOrder = [...currentOrder];
+    if (direction === 'up' && currentIndex > 0) {
+      [newOrder[currentIndex], newOrder[currentIndex - 1]] = [newOrder[currentIndex - 1], newOrder[currentIndex]];
+    } else if (direction === 'down' && currentIndex < newOrder.length - 1) {
+      [newOrder[currentIndex], newOrder[currentIndex + 1]] = [newOrder[currentIndex + 1], newOrder[currentIndex]];
+    }
+
+    setManualOrder(newOrder);
   };
 
   if (!tasksData) {
@@ -534,6 +594,26 @@ const ProjectDashboard = () => {
               <option value="medium">Medium</option>
               <option value="low">Low</option>
             </select>
+            
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="id">Sort by ID</option>
+              <option value="title">Sort by Title</option>
+              <option value="status">Sort by Status</option>
+              <option value="priority">Sort by Priority</option>
+              <option value="manual">Manual Order</option>
+            </select>
+            
+            <button
+              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-gray-50 transition-colors"
+              title={`Current: ${sortOrder === 'asc' ? 'Ascending' : 'Descending'}`}
+            >
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </button>
           </div>
           
           <div className="mt-3 text-sm text-gray-500">
@@ -595,6 +675,26 @@ const ProjectDashboard = () => {
                       <Eye className="w-4 h-4" />
                       Details
                     </button>
+                    {sortBy === 'manual' && (
+                      <div className="flex flex-col">
+                        <button
+                          onClick={() => moveTask(task.id, 'up')}
+                          disabled={filteredTasks.indexOf(task) === 0}
+                          className="px-2 py-1 border border-gray-300 rounded-t text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Move up"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => moveTask(task.id, 'down')}
+                          disabled={filteredTasks.indexOf(task) === filteredTasks.length - 1}
+                          className="px-2 py-1 border border-gray-300 rounded-b border-t-0 text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Move down"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                     <select
                       value={task.status}
                       onChange={(e) => updateTaskStatus(task.id, e.target.value)}
@@ -655,7 +755,7 @@ const ProjectDashboard = () => {
                         {task.dependencies?.length || 0}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 items-center">
                           <button
                             onClick={() => setSelectedTask(task)}
                             className="text-blue-600 hover:text-blue-900 flex items-center gap-1"
@@ -663,6 +763,26 @@ const ProjectDashboard = () => {
                             <Eye className="w-4 h-4" />
                             View
                           </button>
+                          {sortBy === 'manual' && (
+                            <>
+                              <button
+                                onClick={() => moveTask(task.id, 'up')}
+                                disabled={filteredTasks.indexOf(task) === 0}
+                                className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Move up"
+                              >
+                                <ChevronUp className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => moveTask(task.id, 'down')}
+                                disabled={filteredTasks.indexOf(task) === filteredTasks.length - 1}
+                                className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                title="Move down"
+                              >
+                                <ChevronDown className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
                           <select
                             value={task.status}
                             onChange={(e) => updateTaskStatus(task.id, e.target.value)}
