@@ -37,10 +37,10 @@ const ProjectDashboard = () => {
     const availableProjects = [
       {
         id: 1,
-        name: 'CPUE 예측',
-        folderName: 'cpue_prediction',
-        path: 'projects/cpue_prediction/tasks.json',
-        description: 'CPUE 예측 프로젝트'
+        name: 'CPUE 예측(데이터셋 구축)',
+        folderName: 'cpue_prediction_dataset',
+        path: 'projects/cpue_prediction_dataset/tasks.json',
+        description: 'CPUE 예측 프로젝트(데이터셋 구축)'
       },
       {
         id: 2,
