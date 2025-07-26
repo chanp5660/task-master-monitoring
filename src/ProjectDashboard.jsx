@@ -982,7 +982,7 @@ const ProjectDashboard = () => {
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Dependencies:</span>
-                          <p className="text-gray-900 mt-1">{selectedTask.dependencies?.length || 0}</p>
+                          <p className="text-gray-900 mt-1">{selectedTask.dependencies.join(', ')}</p>
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Subtasks:</span>
