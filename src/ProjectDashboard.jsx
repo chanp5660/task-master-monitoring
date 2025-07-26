@@ -305,48 +305,51 @@ const ProjectDashboard = () => {
     setTasksData({ ...tasksData, tasks: updatedTasks });
   };
 
-  // 토폴로지 정렬 함수 (의존성 기반)
+  // 토폴로지 정렬 함수 (상태 우선 + 의존성 보조)
   const getTopologicalOrder = (tasks) => {
-    const taskMap = new Map(tasks.map(task => [task.id, task]));
-    const visited = new Set();
-    const visiting = new Set();
-    const result = [];
-
-    const visit = (taskId) => {
-      if (visiting.has(taskId)) {
-        // 순환 의존성 감지 - 건너뛰기
-        console.warn(`Circular dependency detected involving task ${taskId}`);
-        return true;
-      }
-      if (visited.has(taskId)) {
-        return true;
-      }
-
-      visiting.add(taskId);
-      const task = taskMap.get(taskId);
-      
-      if (task?.dependencies?.length > 0) {
-        for (const depId of task.dependencies) {
-          if (taskMap.has(depId)) {
-            visit(depId);
-          }
-        }
-      }
-
-      visiting.delete(taskId);
-      visited.add(taskId);
-      result.unshift(taskId); // 앞쪽에 추가하여 의존성이 먼저 오도록
-      return true;
+    // 상태별 우선순위 정의
+    const statusOrder = {
+      'done': 1,
+      'completed': 1,
+      'in-progress': 2,
+      'review': 3,
+      'pending': 4,
+      'deferred': 5,
+      'blocked': 6,
+      'cancelled': 6
     };
 
-    // 모든 작업에 대해 방문
-    for (const task of tasks) {
-      if (!visited.has(task.id)) {
-        visit(task.id);
+    // 상태와 의존성을 모두 고려한 복합 정렬
+    const sortedTasks = [...tasks].sort((a, b) => {
+      const statusA = statusOrder[a.status] || 7;
+      const statusB = statusOrder[b.status] || 7;
+      
+      // 1차: 상태 우선순위로 정렬
+      if (statusA !== statusB) {
+        return statusA - statusB;
       }
-    }
+      
+      // 2차: 같은 상태 내에서는 의존성 관계 고려
+      // a가 b에 의존하면 b가 먼저
+      if (a.dependencies?.includes(b.id)) {
+        return 1;
+      }
+      if (b.dependencies?.includes(a.id)) {
+        return -1;
+      }
+      
+      // 3차: 의존성 깊이로 정렬 (의존성이 적은 것이 먼저)
+      const depsA = a.dependencies?.length || 0;
+      const depsB = b.dependencies?.length || 0;
+      if (depsA !== depsB) {
+        return depsA - depsB;
+      }
+      
+      // 4차: ID로 정렬 (안정성을 위해)
+      return a.id - b.id;
+    });
 
-    return result;
+    return sortedTasks.map(task => task.id);
   };
 
   // Subtask 토폴로지 정렬 함수
@@ -723,9 +726,9 @@ const ProjectDashboard = () => {
             <button
               onClick={initializeDependencyOrder}
               className="px-4 py-2 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-blue-50 transition-colors text-blue-600 hover:text-blue-700"
-              title="Sort by Dependencies (Topological Order)"
+              title="Sort by Status Priority then Dependencies (Topological Order)"
             >
-              🔗 Dependency Order
+              📊 Status + Dependency Order
             </button>
           </div>
           
