@@ -352,57 +352,69 @@ const ProjectDashboard = () => {
     return sortedTasks.map(task => task.id);
   };
 
-  // Subtask 토폴로지 정렬 함수
+  // Subtask 토폴로지 정렬 함수 (상태 우선 + 의존성 보조)
   const getSubtaskTopologicalOrder = (subtasks, parentTaskId) => {
     if (!subtasks || subtasks.length === 0) return [];
     
-    const subtaskMap = new Map(subtasks.map(subtask => [subtask.id, subtask]));
-    const visited = new Set();
-    const visiting = new Set();
-    const result = [];
+    // 상태별 우선순위 정의 (메인 태스크와 동일)
+    const statusOrder = {
+      'done': 1,
+      'completed': 1,
+      'in-progress': 2,
+      'review': 3,
+      'pending': 4,
+      'deferred': 5,
+      'blocked': 6,
+      'cancelled': 6
+    };
 
-    const visit = (subtaskId) => {
-      if (visiting.has(subtaskId)) {
-        console.warn(`Circular dependency detected in subtask ${subtaskId} of task ${parentTaskId}`);
-        return true;
-      }
-      if (visited.has(subtaskId)) {
-        return true;
-      }
-
-      visiting.add(subtaskId);
-      const subtask = subtaskMap.get(subtaskId);
+    // 상태와 의존성을 모두 고려한 복합 정렬
+    const sortedSubtasks = [...subtasks].sort((a, b) => {
+      const statusA = statusOrder[a.status] || 7;
+      const statusB = statusOrder[b.status] || 7;
       
-      if (subtask?.dependencies?.length > 0) {
-        for (const depId of subtask.dependencies) {
-          // 의존성이 문자열 형태인 경우 처리 (예: "9.1")
+      // 1차: 상태 우선순위로 정렬
+      if (statusA !== statusB) {
+        return statusA - statusB;
+      }
+      
+      // 2차: 같은 상태 내에서는 의존성 관계 고려
+      // a가 b에 의존하면 b가 먼저
+      if (a.dependencies?.length > 0) {
+        for (const depId of a.dependencies) {
           let actualDepId = depId;
           if (typeof depId === 'string' && depId.includes('.')) {
-            // "9.1" 형태에서 "1"만 추출
             actualDepId = parseInt(depId.split('.')[1]);
           }
-          
-          if (subtaskMap.has(actualDepId)) {
-            visit(actualDepId);
+          if (actualDepId === b.id) {
+            return 1; // a가 b에 의존하므로 b가 먼저
           }
         }
       }
-
-      visiting.delete(subtaskId);
-      visited.add(subtaskId);
-      result.push(subtaskId); // unshift에서 push로 변경하여 역순으로 정렬
-      return true;
-    };
-
-    // 모든 subtask에 대해 방문
-    for (const subtask of subtasks) {
-      if (!visited.has(subtask.id)) {
-        visit(subtask.id);
+      if (b.dependencies?.length > 0) {
+        for (const depId of b.dependencies) {
+          let actualDepId = depId;
+          if (typeof depId === 'string' && depId.includes('.')) {
+            actualDepId = parseInt(depId.split('.')[1]);
+          }
+          if (actualDepId === a.id) {
+            return -1; // b가 a에 의존하므로 a가 먼저
+          }
+        }
       }
-    }
+      
+      // 3차: 의존성 깊이로 정렬 (의존성이 적은 것이 먼저)
+      const depsA = a.dependencies?.length || 0;
+      const depsB = b.dependencies?.length || 0;
+      if (depsA !== depsB) {
+        return depsA - depsB;
+      }
+      
+      // 4차: ID로 정렬 (안정성을 위해)
+      return a.id - b.id;
+    });
 
-    // 정렬된 ID 순서에 따라 실제 subtask 객체들을 반환
-    return result.map(id => subtasks.find(st => st.id === id)).filter(Boolean);
+    return sortedSubtasks;
   };
 
   // 의존성 기반 정렬 초기화
