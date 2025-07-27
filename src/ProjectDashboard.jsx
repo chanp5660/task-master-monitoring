@@ -1246,7 +1246,7 @@ const ProjectDashboard = () => {
                   
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
                     {task.dependencies?.length > 0 && (
-                      <span>Dependencies: {task.dependencies.join(', ')}</span>
+                      <span>Dependencies: {task.dependencies?.join(', ') || 'None'}</span>
                     )}
                   </div>
                   
@@ -1513,7 +1513,7 @@ const ProjectDashboard = () => {
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Dependencies:</span>
-                          <p className="text-gray-900 mt-1">{selectedTask.dependencies.join(', ')}</p>
+                          <p className="text-gray-900 mt-1">{selectedTask.dependencies?.join(', ') || 'None'}</p>
                         </div>
                         <div>
                           <span className="font-medium text-gray-700">Subtasks:</span>
