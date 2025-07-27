@@ -376,6 +376,68 @@ const ProjectDashboard = () => {
     }
   };
 
+  // 의존성이 완료되지 않은 작업인지 확인
+  const hasUncompletedDependencies = (task) => {
+    if (!task.dependencies || task.dependencies.length === 0) return false;
+    
+    return task.dependencies.some(depId => {
+      const dependentTask = tasksData.tasks.find(t => t.id === depId);
+      return dependentTask && dependentTask.status !== 'done' && dependentTask.status !== 'completed';
+    });
+  };
+
+  // 바로 진행 가능한 작업인지 확인 (모든 의존성이 완료되고 본인은 미완료)
+  const isReadyToStart = (task) => {
+    // 이미 완료된 작업은 진행 가능 표시하지 않음
+    if (task.status === 'done' || task.status === 'completed') return false;
+    
+    // 의존성이 없으면 바로 진행 가능
+    if (!task.dependencies || task.dependencies.length === 0) return true;
+    
+    // 모든 의존성이 완료되었는지 확인
+    return task.dependencies.every(depId => {
+      const dependentTask = tasksData.tasks.find(t => t.id === depId);
+      return dependentTask && (dependentTask.status === 'done' || dependentTask.status === 'completed');
+    });
+  };
+
+  // subtask의 의존성이 완료되지 않은지 확인
+  const hasUncompletedSubtaskDependencies = (subtask, allSubtasks) => {
+    if (!subtask.dependencies || subtask.dependencies.length === 0) return false;
+    
+    return subtask.dependencies.some(depId => {
+      // 의존성 ID 파싱 (예: "1.2" 형태에서 실제 subtask ID 추출)
+      let actualDepId = depId;
+      if (typeof depId === 'string' && depId.includes('.')) {
+        actualDepId = parseInt(depId.split('.')[1]);
+      }
+      
+      const dependentSubtask = allSubtasks.find(st => st.id === actualDepId);
+      return dependentSubtask && dependentSubtask.status !== 'done' && dependentSubtask.status !== 'completed';
+    });
+  };
+
+  // subtask가 바로 진행 가능한지 확인
+  const isSubtaskReadyToStart = (subtask, allSubtasks) => {
+    // 이미 완료된 subtask는 진행 가능 표시하지 않음
+    if (subtask.status === 'done' || subtask.status === 'completed') return false;
+    
+    // 의존성이 없으면 바로 진행 가능
+    if (!subtask.dependencies || subtask.dependencies.length === 0) return true;
+    
+    // 모든 의존성이 완료되었는지 확인
+    return subtask.dependencies.every(depId => {
+      // 의존성 ID 파싱
+      let actualDepId = depId;
+      if (typeof depId === 'string' && depId.includes('.')) {
+        actualDepId = parseInt(depId.split('.')[1]);
+      }
+      
+      const dependentSubtask = allSubtasks.find(st => st.id === actualDepId);
+      return dependentSubtask && (dependentSubtask.status === 'done' || dependentSubtask.status === 'completed');
+    });
+  };
+
   // 상태 아이콘
   const getStatusIcon = (status) => {
     switch (status) {
@@ -1065,7 +1127,13 @@ const ProjectDashboard = () => {
         {viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTasks.map((task) => (
-              <div key={task.id} className="bg-white rounded-lg shadow hover:shadow-lg transition-shadow">
+              <div key={task.id} className={`rounded-lg shadow hover:shadow-lg transition-shadow ${
+                hasUncompletedDependencies(task) 
+                  ? 'bg-red-50 border border-red-200' 
+                  : isReadyToStart(task)
+                    ? 'bg-blue-50 border border-blue-200'
+                    : 'bg-white'
+              }`}>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -1169,7 +1237,13 @@ const ProjectDashboard = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredTasks.map((task) => (
-                    <tr key={task.id} className="hover:bg-gray-50">
+                    <tr key={task.id} className={`${
+                      hasUncompletedDependencies(task) 
+                        ? 'bg-red-50 hover:bg-red-100 border-l-4 border-red-400' 
+                        : isReadyToStart(task)
+                          ? 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-400'
+                          : 'hover:bg-gray-50'
+                    }`}>
                       <td className="px-6 py-4">
                         <div>
                           <div className="flex items-center gap-2">
@@ -1251,9 +1325,21 @@ const ProjectDashboard = () => {
       {/* 작업 상세 모달 */}
       {selectedTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full my-8 max-h-[95vh] overflow-hidden">
+          <div className={`rounded-lg shadow-xl max-w-4xl w-full my-8 max-h-[95vh] overflow-hidden ${
+            hasUncompletedDependencies(selectedTask) 
+              ? 'bg-red-50 border-2 border-red-200' 
+              : isReadyToStart(selectedTask)
+                ? 'bg-blue-50 border-2 border-blue-200'
+                : 'bg-white'
+          }`}>
             {/* 통합된 헤더 */}
-            <div className="bg-gray-50 px-6 py-6 border-b rounded-t-lg">
+            <div className={`px-6 py-6 border-b rounded-t-lg ${
+              hasUncompletedDependencies(selectedTask) 
+                ? 'bg-red-100' 
+                : isReadyToStart(selectedTask)
+                  ? 'bg-blue-100'
+                  : 'bg-gray-50'
+            }`}>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-3">
@@ -1283,7 +1369,13 @@ const ProjectDashboard = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   <div className="lg:col-span-2 space-y-6">
                     {/* 기본 정보 카드 */}
-                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                    <div className={`rounded-lg p-4 border ${
+                      hasUncompletedDependencies(selectedTask) 
+                        ? 'bg-red-100 border-red-300' 
+                        : isReadyToStart(selectedTask)
+                          ? 'bg-blue-100 border-blue-300'
+                          : 'bg-blue-50 border-blue-200'
+                    }`}>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                         <div>
                           <span className="font-medium text-gray-700">Priority:</span>
@@ -1350,7 +1442,13 @@ const ProjectDashboard = () => {
                         </h4>
                         <div className="space-y-3">
                           {getSubtaskTopologicalOrder(selectedTask.subtasks).map((subtask) => (
-                            <div key={subtask.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                            <div key={subtask.id} className={`border rounded-lg p-4 shadow-sm ${
+                              hasUncompletedSubtaskDependencies(subtask, selectedTask.subtasks)
+                                ? 'bg-red-50 border-red-200'
+                                : isSubtaskReadyToStart(subtask, selectedTask.subtasks)
+                                  ? 'bg-blue-50 border-blue-200'
+                                  : 'bg-white border-gray-200'
+                            }`}>
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-2">
                                   <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">#{subtask.id}</span>
