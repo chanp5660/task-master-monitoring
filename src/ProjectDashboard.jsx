@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare, Plus, FolderPlus } from 'lucide-react';
+import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare, Plus, FolderPlus, Github } from 'lucide-react';
 
 const ProjectDashboard = () => {
   const [tasksData, setTasksData] = useState(null);
@@ -890,7 +890,18 @@ const ProjectDashboard = () => {
           <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl w-full mx-4">
             <div className="text-center mb-8">
               <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Project Dashboard</h2>
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <h2 className="text-2xl font-bold text-gray-900">Project Dashboard</h2>
+                <a
+                  href="https://github.com/chanp5660/task-master-monitoring"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                  title="GitHub Repository"
+                >
+                  <Github className="w-5 h-5" />
+                </a>
+              </div>
               <p className="text-gray-600 mb-6">Load your project data to start managing tasks</p>
             </div>
 
@@ -1015,6 +1026,15 @@ const ProjectDashboard = () => {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <a
+                href="https://github.com/chanp5660/task-master-monitoring"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1"
+                title="GitHub Repository"
+              >
+                <Github className="w-5 h-5" />
+              </a>
               {/* 뷰 모드 선택 */}
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
