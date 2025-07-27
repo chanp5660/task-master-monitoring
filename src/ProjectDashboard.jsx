@@ -4,13 +4,10 @@ import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X,
 const ProjectDashboard = () => {
   const [tasksData, setTasksData] = useState(null);
   const [selectedTask, setSelectedTask] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
+  const [filterStatus, setFilterStatus] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('list');
   const [jsonInput, setJsonInput] = useState('');
-  const [sortBy, setSortBy] = useState('id');
-  const [sortOrder, setSortOrder] = useState('asc');
   const [manualOrder, setManualOrder] = useState([]);
   
   // 프로젝트 관리 상태
@@ -203,7 +200,6 @@ const ProjectDashboard = () => {
       setTasksData(tasksToSet);
       setCurrentProject(project);
       // 새 프로젝트 로드 시 상태+의존성 정렬 자동 적용
-      setSortBy('manual');
       const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
       setManualOrder(dependencyOrder);
       console.log(`External project "${project.name}" loaded successfully from ${result.path}!`);
@@ -293,7 +289,6 @@ const ProjectDashboard = () => {
       setTasksData(tasksToSet);
       setCurrentProject(project);
       // 새 프로젝트 로드 시 상태+의존성 정렬 자동 적용
-      setSortBy('manual');
       const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
       setManualOrder(dependencyOrder);
       console.log(`Project "${project.name}" loaded successfully!`);
@@ -340,7 +335,6 @@ const ProjectDashboard = () => {
       setTasksData(tasksToSet);
       setCurrentProject(null); // 직접 입력한 경우는 currentProject를 null로 설정
       // JSON 입력 시 상태+의존성 정렬 자동 적용
-      setSortBy('manual');
       const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
       setManualOrder(dependencyOrder);
       setJsonInput('');
@@ -465,44 +459,25 @@ const ProjectDashboard = () => {
     if (!tasksData?.tasks) return [];
     
     let filtered = tasksData.tasks.filter(task => {
-      const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
-      const matchesPriority = filterPriority === 'all' || task.priority === filterPriority;
+      const matchesStatus = filterStatus.length === 0 || filterStatus.includes(task.status);
       const matchesSearch = searchTerm === '' || 
         task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         task.description.toLowerCase().includes(searchTerm.toLowerCase());
       
-      return matchesStatus && matchesPriority && matchesSearch;
+      return matchesStatus && matchesSearch;
     });
 
-    // 정렬 로직
-    const getSortValue = (task, sortBy) => {
-      switch (sortBy) {
-        case 'id': return task.id;
-        case 'title': return task.title.toLowerCase();
-        case 'status': return task.status;
-        case 'priority': 
-          const priorityOrder = { 'critical': 4, 'high': 3, 'medium': 2, 'low': 1 };
-          return priorityOrder[task.priority] || 0;
-        case 'manual':
-          const currentOrder = manualOrder.length > 0 ? manualOrder : tasksData.tasks.map(t => t.id);
-          return currentOrder.indexOf(task.id);
-        default: return task.id;
-      }
-    };
-
+    // Status + Dependency 기반 정렬 (항상 적용)
+    const currentOrder = manualOrder.length > 0 ? manualOrder : tasksData.tasks.map(t => t.id);
+    
     filtered.sort((a, b) => {
-      const aValue = getSortValue(a, sortBy);
-      const bValue = getSortValue(b, sortBy);
-      
-      let comparison = 0;
-      if (aValue < bValue) comparison = -1;
-      else if (aValue > bValue) comparison = 1;
-      
-      return sortOrder === 'asc' ? comparison : -comparison;
+      const aIndex = currentOrder.indexOf(a.id);
+      const bIndex = currentOrder.indexOf(b.id);
+      return aIndex - bIndex;
     });
 
     return filtered;
-  }, [tasksData, filterStatus, filterPriority, searchTerm, sortBy, sortOrder, manualOrder]);
+  }, [tasksData, filterStatus, searchTerm, manualOrder]);
 
   // 통계 계산
   const stats = useMemo(() => {
@@ -777,21 +752,12 @@ const ProjectDashboard = () => {
 
   // 의존성 기반 정렬 초기화
   const initializeDependencyOrder = () => {
-    setSortBy('manual');
     const dependencyOrder = getTopologicalOrder(tasksData.tasks);
     setManualOrder(dependencyOrder);
   };
 
   // 수동 정렬 함수
   const moveTask = (taskId, direction) => {
-    if (sortBy !== 'manual') {
-      setSortBy('manual');
-      // 의존성 기반 토폴로지 정렬로 초기화
-      const dependencyOrder = getTopologicalOrder(tasksData.tasks);
-      setManualOrder(dependencyOrder);
-      return;
-    }
-
     const currentOrder = manualOrder.length > 0 ? manualOrder : filteredTasks.map(task => task.id);
     const currentIndex = currentOrder.indexOf(taskId);
     
@@ -1047,7 +1013,7 @@ const ProjectDashboard = () => {
 
         {/* 필터 및 검색 */}
         <div className="bg-white rounded-lg shadow mb-6 p-4">
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4 h-10">
             <div className="flex-1 min-w-64">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -1061,53 +1027,50 @@ const ProjectDashboard = () => {
               </div>
             </div>
             
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="done">Done</option>
-              <option value="completed">Completed</option>
-              <option value="in-progress">In Progress</option>
-              <option value="pending">Pending</option>
-              <option value="review">Review</option>
-              <option value="deferred">Deferred</option>
-              <option value="blocked">Blocked</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
-            
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">All Priority</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
-            </select>
-            
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="id">Sort by ID</option>
-              <option value="title">Sort by Title</option>
-              <option value="status">Sort by Status</option>
-              <option value="priority">Sort by Priority</option>
-              <option value="manual">Manual Order</option>
-            </select>
-            
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent hover:bg-gray-50 transition-colors"
-              title={`Current: ${sortOrder === 'asc' ? 'Ascending' : 'Descending'}`}
-            >
-              {sortOrder === 'asc' ? '↑' : '↓'}
-            </button>
+            {/* 상태 필터 - 컴팩트한 다중 선택 */}
+            <div className="relative group">
+              <div className="px-4 py-2 border border-gray-300 rounded-lg bg-white cursor-pointer hover:bg-gray-50 min-w-40">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">
+                    Status Filter {filterStatus.length > 0 && `(${filterStatus.length})`}
+                  </span>
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                </div>
+              </div>
+              
+              {/* 드롭다운 메뉴 */}
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                <div className="p-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {['done', 'completed', 'in-progress', 'pending', 'review', 'deferred', 'blocked', 'cancelled'].map(status => (
+                      <label key={status} className="flex items-center gap-2 text-sm whitespace-nowrap">
+                        <input
+                          type="checkbox"
+                          checked={filterStatus.includes(status)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFilterStatus([...filterStatus, status]);
+                            } else {
+                              setFilterStatus(filterStatus.filter(s => s !== status));
+                            }
+                          }}
+                          className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="capitalize text-xs">{status}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {filterStatus.length > 0 && (
+                    <button
+                      onClick={() => setFilterStatus([])}
+                      className="text-xs text-blue-600 hover:text-blue-800 mt-2 w-full text-center py-1 hover:bg-blue-50 rounded"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
             
             <button
               onClick={initializeDependencyOrder}
@@ -1183,26 +1146,24 @@ const ProjectDashboard = () => {
                       <Eye className="w-4 h-4" />
                       Details
                     </button>
-                    {sortBy === 'manual' && (
-                      <div className="flex flex-col">
-                        <button
-                          onClick={() => moveTask(task.id, 'up')}
-                          disabled={filteredTasks.indexOf(task) === 0}
-                          className="px-2 py-1 border border-gray-300 rounded-t text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          title="Move up"
-                        >
-                          <ChevronUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={() => moveTask(task.id, 'down')}
-                          disabled={filteredTasks.indexOf(task) === filteredTasks.length - 1}
-                          className="px-2 py-1 border border-gray-300 rounded-b border-t-0 text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          title="Move down"
-                        >
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex flex-col">
+                      <button
+                        onClick={() => moveTask(task.id, 'up')}
+                        disabled={filteredTasks.indexOf(task) === 0}
+                        className="px-2 py-1 border border-gray-300 rounded-t text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Move up"
+                      >
+                        <ChevronUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => moveTask(task.id, 'down')}
+                        disabled={filteredTasks.indexOf(task) === filteredTasks.length - 1}
+                        className="px-2 py-1 border border-gray-300 rounded-b border-t-0 text-xs hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Move down"
+                      >
+                        <ChevronDown className="w-3 h-3" />
+                      </button>
+                    </div>
                     <select
                       value={task.status}
                       onChange={(e) => updateTaskStatus(task.id, e.target.value)}
@@ -1277,26 +1238,22 @@ const ProjectDashboard = () => {
                             <Eye className="w-4 h-4" />
                             View
                           </button>
-                          {sortBy === 'manual' && (
-                            <>
-                              <button
-                                onClick={() => moveTask(task.id, 'up')}
-                                disabled={filteredTasks.indexOf(task) === 0}
-                                className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Move up"
-                              >
-                                <ChevronUp className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => moveTask(task.id, 'down')}
-                                disabled={filteredTasks.indexOf(task) === filteredTasks.length - 1}
-                                className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                title="Move down"
-                              >
-                                <ChevronDown className="w-4 h-4" />
-                              </button>
-                            </>
-                          )}
+                          <button
+                            onClick={() => moveTask(task.id, 'up')}
+                            disabled={filteredTasks.indexOf(task) === 0}
+                            className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Move up"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => moveTask(task.id, 'down')}
+                            disabled={filteredTasks.indexOf(task) === filteredTasks.length - 1}
+                            className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            title="Move down"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </button>
                           <select
                             value={task.status}
                             onChange={(e) => updateTaskStatus(task.id, e.target.value)}
