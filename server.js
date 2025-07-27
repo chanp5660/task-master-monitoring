@@ -10,8 +10,10 @@ const PORT = 3001;
 app.use(cors());
 app.use(express.json());
 
-// 정적 파일 서빙 (React 빌드 파일)
-app.use(express.static(path.join(__dirname, 'build')));
+// 정적 파일 서빙 (React 빌드 파일) - 프로덕션 모드에서만
+if (process.env.NODE_ENV === 'production' && fs.existsSync(path.join(__dirname, 'build'))) {
+  app.use(express.static(path.join(__dirname, 'build')));
+}
 
 // 메모 저장 API
 app.post('/api/save-memo', (req, res) => {
@@ -114,9 +116,97 @@ app.post('/api/create-project-dir', (req, res) => {
   }
 });
 
-// React 앱 서빙 (모든 다른 라우트)
+// 프로젝트 목록 스캔 API
+app.get('/api/scan-projects', (req, res) => {
+  try {
+    const projectsPath = path.join(__dirname, 'public', 'projects');
+    
+    // projects 폴더가 없으면 빈 배열 반환
+    if (!fs.existsSync(projectsPath)) {
+      return res.json({ 
+        success: true, 
+        projects: [] 
+      });
+    }
+    
+    const projects = [];
+    const folders = fs.readdirSync(projectsPath, { withFileTypes: true });
+    
+    folders.forEach((folder, index) => {
+      if (folder.isDirectory()) {
+        const folderName = folder.name;
+        const tasksJsonPath = path.join(projectsPath, folderName, 'tasks.json');
+        
+        // tasks.json 파일이 있는 폴더만 유효한 프로젝트로 인식
+        if (fs.existsSync(tasksJsonPath)) {
+          try {
+            // tasks.json에서 프로젝트 정보 읽기
+            const tasksData = JSON.parse(fs.readFileSync(tasksJsonPath, 'utf8'));
+            
+            // 프로젝트 이름은 folder 이름을 기본으로 하되, master.projectName이나 projectName이 있으면 사용
+            let projectName = folderName;
+            let description = `${folderName} 프로젝트`;
+            
+            if (tasksData.master?.projectName) {
+              projectName = tasksData.master.projectName;
+            } else if (tasksData.projectName) {
+              projectName = tasksData.projectName;
+            }
+            
+            if (tasksData.master?.description) {
+              description = tasksData.master.description;
+            } else if (tasksData.description) {
+              description = tasksData.description;
+            }
+            
+            projects.push({
+              id: index + 1,
+              name: projectName,
+              folderName: folderName,
+              path: `projects/${folderName}/tasks.json`,
+              description: description,
+              taskCount: tasksData.master?.tasks?.length || tasksData.tasks?.length || 0
+            });
+            
+          } catch (parseError) {
+            console.warn(`Failed to parse tasks.json for project ${folderName}:`, parseError.message);
+            // JSON 파싱에 실패해도 기본 정보로 프로젝트 추가
+            projects.push({
+              id: index + 1,
+              name: folderName,
+              folderName: folderName,
+              path: `projects/${folderName}/tasks.json`,
+              description: `${folderName} 프로젝트 (파싱 오류)`,
+              taskCount: 0
+            });
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${projects.length} projects in ${projectsPath}`);
+    res.json({ 
+      success: true, 
+      projects: projects
+    });
+    
+  } catch (error) {
+    console.error('Error scanning projects:', error);
+    res.status(500).json({ 
+      error: 'Failed to scan projects', 
+      details: error.message 
+    });
+  }
+});
+
+// React 앱 서빙 (모든 다른 라우트) - 프로덕션 모드에서만
 app.get('*', (_, res) => {
-  res.sendFile(path.join(__dirname, 'build', 'index.html'));
+  const buildIndexPath = path.join(__dirname, 'build', 'index.html');
+  if (process.env.NODE_ENV === 'production' && fs.existsSync(buildIndexPath)) {
+    res.sendFile(buildIndexPath);
+  } else {
+    res.status(404).send('API server running in development mode. Use React dev server on port 3000.');
+  }
 });
 
 app.listen(PORT, () => {
@@ -125,4 +215,5 @@ app.listen(PORT, () => {
   console.log(`  POST /api/save-memo - Save memo to file`);
   console.log(`  GET  /api/load-memo/:project - Load memo from file`);
   console.log(`  POST /api/create-project-dir - Create project directory`);
+  console.log(`  GET  /api/scan-projects - Scan projects folder for available projects`);
 });

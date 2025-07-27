@@ -80,26 +80,61 @@ const ProjectDashboard = () => {
   }, [currentProject]);
 
   // 사용 가능한 프로젝트 목록 로드
-  const loadAvailableProjects = () => {
-    // projects 폴더 내의 프로젝트들을 정의, 수정 필요
-    const availableProjects = [
-      {
-        id: 1,
-        name: 'CPUE 예측(데이터셋 구축)',
-        folderName: 'cpue_prediction_dataset',
-        path: 'projects/cpue_prediction_dataset/tasks.json',
-        description: 'CPUE 예측 프로젝트(데이터셋 구축)'
-      },
-      {
-        id: 2,
-        name: '테스트',
-        folderName: 'test',
-        path: 'projects/test/tasks.json',
-        description: '테스트 프로젝트'
+  const loadAvailableProjects = async () => {
+    try {
+      const response = await fetch('/api/scan-projects', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.projects) {
+        setProjects(result.projects);
+        console.log(`Found ${result.projects.length} projects automatically`);
+      } else {
+        console.warn('Failed to scan projects, using fallback');
+        // 백업용 하드코딩된 프로젝트 목록
+        const fallbackProjects = [
+          {
+            id: 1,
+            name: 'CPUE 예측(데이터셋 구축)',
+            folderName: 'cpue_prediction_dataset',
+            path: 'projects/cpue_prediction_dataset/tasks.json',
+            description: 'CPUE 예측 프로젝트(데이터셋 구축)'
+          },
+          {
+            id: 2,
+            name: '테스트',
+            folderName: 'test',
+            path: 'projects/test/tasks.json',
+            description: '테스트 프로젝트'
+          }
+        ];
+        setProjects(fallbackProjects);
       }
-    ];
-    
-    setProjects(availableProjects);
+    } catch (error) {
+      console.error('Error scanning projects:', error);
+      // 네트워크 오류 시 백업용 프로젝트 목록 사용
+      const fallbackProjects = [
+        {
+          id: 1,
+          name: 'CPUE 예측(데이터셋 구축)',
+          folderName: 'cpue_prediction_dataset',
+          path: 'projects/cpue_prediction_dataset/tasks.json',
+          description: 'CPUE 예측 프로젝트(데이터셋 구축)'
+        },
+        {
+          id: 2,
+          name: '테스트',
+          folderName: 'test',
+          path: 'projects/test/tasks.json',
+          description: '테스트 프로젝트'
+        }
+      ];
+      setProjects(fallbackProjects);
+      setLoadError('Failed to automatically scan projects. Using default project list.');
+    }
   };
 
   // 경로에서 프로젝트 로드
@@ -635,6 +670,9 @@ const ProjectDashboard = () => {
                         <div className="font-medium text-gray-900">{project.name}</div>
                         <div className="text-sm text-gray-600 mt-1">{project.description}</div>
                         <div className="text-xs text-gray-500 mt-1 font-mono">projects/{project.folderName}/</div>
+                        {project.taskCount !== undefined && (
+                          <div className="text-xs text-blue-600 mt-1">📋 {project.taskCount} tasks</div>
+                        )}
                       </div>
                       <button
                         onClick={() => loadProjectFromPath(project)}
