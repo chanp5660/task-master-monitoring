@@ -805,34 +805,38 @@ const ProjectDashboard = () => {
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {projects.length > 0 ? (
                     projects.map((project) => (
-                      <div key={project.id} className={`flex items-center gap-2 p-4 rounded-lg hover:bg-gray-100 transition-colors ${project.isExternal ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-gray-900">{project.name}</div>
-                          <div className="text-sm text-gray-600 mt-1">{project.description}</div>
-                          <div className="text-xs text-gray-500 mt-1 font-mono">
-                            {project.isExternal ? `🔗 ${project.externalPath}` : `projects/${project.folderName}/`}
+                      <div key={project.id} className={`p-4 rounded-lg hover:bg-gray-100 transition-colors ${project.isExternal ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-gray-900">{project.name}</div>
+                            <div className="text-sm text-gray-600 mt-1">{project.description}</div>
+                            <div className="text-xs text-gray-500 mt-1 font-mono">
+                              {project.isExternal ? `🔗 ${project.externalPath}` : `projects/${project.folderName}/`}
+                            </div>
+                            {project.taskCount !== undefined && (
+                              <div className="text-xs text-blue-600 mt-1">📋 {project.taskCount} tasks</div>
+                            )}
                           </div>
-                          {project.taskCount !== undefined && (
-                            <div className="text-xs text-blue-600 mt-1">📋 {project.taskCount} tasks</div>
-                          )}
+                          <div className="flex-shrink-0">
+                            <button
+                              onClick={() => loadProjectFromPath(project)}
+                              disabled={isLoading}
+                              className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 min-w-[100px] justify-center font-medium"
+                            >
+                              {isLoading ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  Loading
+                                </>
+                              ) : (
+                                <>
+                                  <ExternalLink className="w-4 h-4" />
+                                  Connect
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => loadProjectFromPath(project)}
-                          disabled={isLoading}
-                          className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 min-w-[100px] justify-center font-medium"
-                        >
-                          {isLoading ? (
-                            <>
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                              Loading
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="w-4 h-4" />
-                              Connect
-                            </>
-                          )}
-                        </button>
                       </div>
                     ))
                   ) : (
