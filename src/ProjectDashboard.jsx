@@ -628,34 +628,6 @@ const ProjectDashboard = () => {
     });
   }, [hasDashboardUnsavedChanges, dashboardMemo, originalDashboardMemo]);
 
-  // Ctrl+S 키보드 단축키 핸들러
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.ctrlKey && event.key === 's') {
-        console.log('⌨️ Ctrl+S 감지됨');
-        event.preventDefault();
-        
-        // 선택된 태스크가 있고 메모가 변경된 경우 태스크 메모 저장
-        if (selectedTask && hasUnsavedChanges) {
-          console.log('📝 태스크 메모 저장 조건 충족 - saveMemo() 호출');
-          saveMemo();
-        }
-        // 대시보드 메모가 변경된 경우 대시보드 메모 저장
-        else if (hasDashboardUnsavedChanges) {
-          console.log('📋 대시보드 메모 저장 조건 충족 - saveDashboardMemo() 호출');
-          saveDashboardMemo();
-        } else {
-          console.log('❌ 저장할 메모 변경사항 없음');
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectedTask, hasUnsavedChanges, hasDashboardUnsavedChanges]);
   
   // 대시보드 메모 로드
   const loadDashboardMemo = async () => {
