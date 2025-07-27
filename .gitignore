@@ -27,3 +27,8 @@ tasks.json
 task-memo.json
 dashboard-memo.json
 path.txt
+
+# sample
+!public/projects/test/tasks.json
+!public/projects/test/task-memo.json
+!public/projects/test/dashboard-memo.json
