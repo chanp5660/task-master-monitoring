@@ -206,6 +206,8 @@ project-dashboard/
 2. 외부 JSON 파일 경로 지정
 3. 프로젝트 생성 후 자동 연결
 
+![](https://i.imgur.com/510BB2R.gif)
+
 ### 4. 작업 관리
 - **필터링**: 상태, 우선순위별 필터 적용
 - **검색**: 제목이나 설명으로 작업 검색
@@ -213,10 +215,20 @@ project-dashboard/
 - **상태 변경**: 카드나 리스트에서 직접 상태 변경
 - **상세 보기**: "Details" 버튼으로 작업 상세 정보 확인
 
+
+![](https://i.imgur.com/Eic8VIe.png)
+![](https://i.imgur.com/DG1JXJT.png)
+![](https://i.imgur.com/ZmzyZI9.png)
+![](https://i.imgur.com/FXyzbAP.png)
+
+
 ### 5. 메모 활용
 - **태스크 메모**: 각 작업 카드에서 메모 아이콘 클릭하여 작성
 - **대시보드 메모**: 우측 상단 메모 섹션에서 전체 프로젝트 메모 작성
 - **자동 저장**: 작성한 메모는 백엔드 API를 통해 자동으로 파일에 저장
+
+![](https://i.imgur.com/QrJi1FD.png)
+![](https://i.imgur.com/rBsLswU.png)
 
 ## 🔄 최근 업데이트 내역
 
