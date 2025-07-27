@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare } from 'lucide-react';
+import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare, Plus, FolderPlus } from 'lucide-react';
 
 const ProjectDashboard = () => {
   const [tasksData, setTasksData] = useState(null);
@@ -23,6 +23,12 @@ const ProjectDashboard = () => {
   const [taskMemos, setTaskMemos] = useState({});
   const [currentMemo, setCurrentMemo] = useState('');
   const [originalMemo, setOriginalMemo] = useState(''); // 저장된 원본 메모
+  
+  // 프로젝트 추가 모달 상태
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectPath, setNewProjectPath] = useState('');
+  const [isCreatingProject, setIsCreatingProject] = useState(false);
 
   // 페이지 로드 시 사용 가능한 프로젝트 목록 로드
   useEffect(() => {
@@ -539,6 +545,55 @@ const ProjectDashboard = () => {
   // 메모 변경사항이 있는지 확인
   const hasUnsavedChanges = currentMemo !== originalMemo;
   
+  // 새 프로젝트 추가 함수
+  const handleAddProject = async () => {
+    if (!newProjectName.trim() || !newProjectPath.trim()) {
+      setLoadError('Please enter both project name and path');
+      return;
+    }
+    
+    setIsCreatingProject(true);
+    try {
+      // 폴더명은 프로젝트 이름을 기반으로 생성 (공백을 언더스코어로 변환)
+      const folderName = newProjectName.trim().toLowerCase().replace(/\s+/g, '_');
+      
+      const response = await fetch('/api/create-project', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newProjectName.trim(),
+          folderName: folderName,
+          externalPath: newProjectPath.trim()
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log(`✅ Project "${newProjectName}" created successfully at ${result.projectPath}`);
+        
+        // 프로젝트 목록 새로고침
+        await loadAvailableProjects();
+        
+        // 모달 닫기 및 입력 필드 초기화
+        setShowAddProjectModal(false);
+        setNewProjectName('');
+        setNewProjectPath('');
+        setLoadError(null);
+        
+        // 성공 메시지 (선택적)
+        alert(`프로젝트 "${newProjectName}"가 성공적으로 생성되었습니다!\n경로: ${result.projectPath}`);
+      } else {
+        setLoadError(result.error || 'Failed to create project');
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+      setLoadError('Failed to create project: ' + error.message);
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+  
 
   // 토폴로지 정렬 함수 (상태 우선 + 의존성 보조)
   const getTopologicalOrder = (tasks) => {
@@ -684,112 +739,119 @@ const ProjectDashboard = () => {
     setManualOrder(newOrder);
   };
 
-  if (!tasksData) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl w-full mx-4">
-          <div className="text-center mb-8">
-            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Project Dashboard</h2>
-            <p className="text-gray-600 mb-6">Load your project data to start managing tasks</p>
-          </div>
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {!tasksData ? (
+        /* 초기 화면 */
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl w-full mx-4">
+            <div className="text-center mb-8">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">Project Dashboard</h2>
+              <p className="text-gray-600 mb-6">Load your project data to start managing tasks</p>
+            </div>
 
-          {/* 에러 메시지 표시 */}
-          {loadError && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="text-sm font-medium text-red-800">Failed to load project</h3>
-                  <p className="text-sm text-red-700 mt-1">{loadError}</p>
+            {/* 에러 메시지 표시 */}
+            {loadError && (
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-medium text-red-800">Failed to load project</h3>
+                    <p className="text-sm text-red-700 mt-1">{loadError}</p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* JSON 직접 입력 */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                <Edit className="w-5 h-5" />
-                Paste JSON Data
-              </h3>
-              <textarea
-                value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
-                placeholder="Paste your JSON data here..."
-                className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
-              />
-              <button
-                onClick={handleJsonSubmit}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-              >
-                Load Project Data
-              </button>
-            </div>
-
-            {/* 프로젝트 관리 */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              {/* JSON 직접 입력 */}
+              <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <ExternalLink className="w-5 h-5" />
-                  Available Projects
+                  <Edit className="w-5 h-5" />
+                  Paste JSON Data
                 </h3>
+                <textarea
+                  value={jsonInput}
+                  onChange={(e) => setJsonInput(e.target.value)}
+                  placeholder="Paste your JSON data here..."
+                  className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
+                />
+                <button
+                  onClick={handleJsonSubmit}
+                  className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                >
+                  Load Project Data
+                </button>
               </div>
 
-              {/* 프로젝트 목록 */}
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {projects.length > 0 ? (
-                  projects.map((project) => (
-                    <div key={project.id} className={`flex items-center gap-2 p-4 rounded-lg hover:bg-gray-100 transition-colors ${project.isExternal ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900">{project.name}</div>
-                        <div className="text-sm text-gray-600 mt-1">{project.description}</div>
-                        <div className="text-xs text-gray-500 mt-1 font-mono">
-                          {project.isExternal ? `🔗 ${project.externalPath}` : `projects/${project.folderName}/`}
+              {/* 프로젝트 관리 */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <ExternalLink className="w-5 h-5" />
+                    Available Projects
+                  </h3>
+                  <button
+                    onClick={() => setShowAddProjectModal(true)}
+                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Project
+                  </button>
+                </div>
+
+                {/* 프로젝트 목록 */}
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {projects.length > 0 ? (
+                    projects.map((project) => (
+                      <div key={project.id} className={`flex items-center gap-2 p-4 rounded-lg hover:bg-gray-100 transition-colors ${project.isExternal ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-gray-900">{project.name}</div>
+                          <div className="text-sm text-gray-600 mt-1">{project.description}</div>
+                          <div className="text-xs text-gray-500 mt-1 font-mono">
+                            {project.isExternal ? `🔗 ${project.externalPath}` : `projects/${project.folderName}/`}
+                          </div>
+                          {project.taskCount !== undefined && (
+                            <div className="text-xs text-blue-600 mt-1">📋 {project.taskCount} tasks</div>
+                          )}
                         </div>
-                        {project.taskCount !== undefined && (
-                          <div className="text-xs text-blue-600 mt-1">📋 {project.taskCount} tasks</div>
-                        )}
+                        <button
+                          onClick={() => loadProjectFromPath(project)}
+                          disabled={isLoading}
+                          className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 min-w-[100px] justify-center font-medium"
+                        >
+                          {isLoading ? (
+                            <>
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                              Loading
+                            </>
+                          ) : (
+                            <>
+                              <ExternalLink className="w-4 h-4" />
+                              Connect
+                            </>
+                          )}
+                        </button>
                       </div>
-                      <button
-                        onClick={() => loadProjectFromPath(project)}
-                        disabled={isLoading}
-                        className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 min-w-[100px] justify-center font-medium"
-                      >
-                        {isLoading ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            Loading
-                          </>
-                        ) : (
-                          <>
-                            <ExternalLink className="w-4 h-4" />
-                            Connect
-                          </>
-                        )}
-                      </button>
+                    ))
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p>No projects available</p>
+                      <p className="text-sm mt-1">Check your projects directory</p>
                     </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-gray-500">
-                    <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                    <p>No projects available</p>
-                    <p className="text-sm mt-1">Check your projects directory</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <div className="bg-white shadow-sm border-b">
+      ) : (
+        /* 메인 대시보드 화면 */
+        <>
+          {/* 헤더 */}
+          <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
@@ -1402,6 +1464,108 @@ const ProjectDashboard = () => {
                       )}
                     </div>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+        </>
+      )}
+
+      {/* 프로젝트 추가 모달 */}
+      {showAddProjectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="bg-gray-50 px-6 py-4 border-b rounded-t-lg">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <FolderPlus className="w-5 h-5 text-green-500" />
+                  Add New Project
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowAddProjectModal(false);
+                    setNewProjectName('');
+                    setNewProjectPath('');
+                    setLoadError(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Project Name
+                  </label>
+                  <input
+                    type="text"
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder="Enter project name..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Folder will be created as: {newProjectName ? newProjectName.toLowerCase().replace(/\s+/g, '_') : 'project_name'}
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Tasks.json File Path
+                  </label>
+                  <input
+                    type="text"
+                    value={newProjectPath}
+                    onChange={(e) => setNewProjectPath(e.target.value)}
+                    placeholder="e.g., /path/to/your/project/tasks.json"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Full path to the tasks.json file you want to link
+                  </p>
+                </div>
+                
+                {loadError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-700">{loadError}</p>
+                  </div>
+                )}
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowAddProjectModal(false);
+                      setNewProjectName('');
+                      setNewProjectPath('');
+                      setLoadError(null);
+                    }}
+                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddProject}
+                    disabled={isCreatingProject || !newProjectName.trim() || !newProjectPath.trim()}
+                    className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-green-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isCreatingProject ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Creating...
+                      </>
+                    ) : (
+                      <>
+                        <FolderPlus className="w-4 h-4" />
+                        Create Project
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

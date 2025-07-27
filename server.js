@@ -339,6 +339,90 @@ app.get('/api/scan-external-links', (req, res) => {
   }
 });
 
+// 프로젝트 생성 API (폴더 생성 + path.txt 파일 생성)
+app.post('/api/create-project', (req, res) => {
+  try {
+    const { name, folderName, externalPath } = req.body;
+    
+    if (!name || !folderName || !externalPath) {
+      return res.status(400).json({ 
+        error: 'Name, folderName, and externalPath are required' 
+      });
+    }
+    
+    // 프로젝트 폴더 경로
+    const projectPath = path.join(__dirname, 'public', 'projects', folderName);
+    const pathFilePath = path.join(projectPath, 'path.txt');
+    
+    // 폴더가 이미 존재하는지 확인
+    if (fs.existsSync(projectPath)) {
+      return res.status(409).json({ 
+        error: 'Project folder already exists',
+        folderName: folderName 
+      });
+    }
+    
+    // 외부 경로가 유효한지 확인
+    if (!fs.existsSync(externalPath)) {
+      return res.status(400).json({ 
+        error: 'External path does not exist',
+        externalPath: externalPath 
+      });
+    }
+    
+    // tasks.json인지 확인
+    if (!externalPath.endsWith('.json') && !externalPath.endsWith('tasks.json')) {
+      return res.status(400).json({ 
+        error: 'External path must point to a JSON file (preferably tasks.json)',
+        externalPath: externalPath 
+      });
+    }
+    
+    // JSON 파일이 올바른 형식인지 확인
+    try {
+      const testData = JSON.parse(fs.readFileSync(externalPath, 'utf8'));
+      if (!testData.tasks && !testData.master?.tasks) {
+        return res.status(400).json({ 
+          error: 'JSON file must contain "tasks" array or "master.tasks" array',
+          externalPath: externalPath 
+        });
+      }
+    } catch (parseError) {
+      return res.status(400).json({ 
+        error: 'External path does not contain valid JSON',
+        externalPath: externalPath,
+        details: parseError.message 
+      });
+    }
+    
+    // 프로젝트 폴더 생성
+    fs.mkdirSync(projectPath, { recursive: true });
+    
+    // path.txt 파일 생성 (외부 경로 저장)
+    fs.writeFileSync(pathFilePath, externalPath, 'utf8');
+    
+    console.log(`Project "${name}" created successfully:`);
+    console.log(`  Folder: ${projectPath}`);
+    console.log(`  External path: ${externalPath}`);
+    console.log(`  Path file: ${pathFilePath}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Project "${name}" created successfully`,
+      projectPath: `projects/${folderName}/`,
+      pathFile: `projects/${folderName}/path.txt`,
+      externalPath: externalPath
+    });
+    
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ 
+      error: 'Failed to create project', 
+      details: error.message 
+    });
+  }
+});
+
 // React 앱 서빙 (모든 다른 라우트) - 프로덕션 모드에서만
 app.get('*', (_, res) => {
   const buildIndexPath = path.join(__dirname, 'build', 'index.html');
@@ -355,6 +439,7 @@ app.listen(PORT, () => {
   console.log(`  POST /api/save-memo - Save memo to file`);
   console.log(`  GET  /api/load-memo/:project - Load memo from file`);
   console.log(`  POST /api/create-project-dir - Create project directory`);
+  console.log(`  POST /api/create-project - Create new project with external path link`);
   console.log(`  GET  /api/scan-projects - Scan projects folder for available projects`);
   console.log(`  POST /api/load-external-path - Load data from external path`);
   console.log(`  GET  /api/scan-external-links - Scan for external link projects (path.txt files)`);
