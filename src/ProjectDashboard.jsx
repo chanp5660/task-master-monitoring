@@ -7,7 +7,7 @@ const ProjectDashboard = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('cards');
+  const [viewMode, setViewMode] = useState('list');
   const [jsonInput, setJsonInput] = useState('');
   const [sortBy, setSortBy] = useState('id');
   const [sortOrder, setSortOrder] = useState('asc');
@@ -202,8 +202,10 @@ const ProjectDashboard = () => {
       
       setTasksData(tasksToSet);
       setCurrentProject(project);
-      // 새 프로젝트 로드 시 수동 정렬 초기화
-      setManualOrder([]);
+      // 새 프로젝트 로드 시 상태+의존성 정렬 자동 적용
+      setSortBy('manual');
+      const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
+      setManualOrder(dependencyOrder);
       console.log(`External project "${project.name}" loaded successfully from ${result.path}!`);
     } catch (error) {
       console.error('Load external project error:', error);
@@ -290,8 +292,10 @@ const ProjectDashboard = () => {
       
       setTasksData(tasksToSet);
       setCurrentProject(project);
-      // 새 프로젝트 로드 시 수동 정렬 초기화
-      setManualOrder([]);
+      // 새 프로젝트 로드 시 상태+의존성 정렬 자동 적용
+      setSortBy('manual');
+      const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
+      setManualOrder(dependencyOrder);
       console.log(`Project "${project.name}" loaded successfully!`);
     } catch (error) {
       console.error('Load project error:', error);
@@ -335,8 +339,10 @@ const ProjectDashboard = () => {
       
       setTasksData(tasksToSet);
       setCurrentProject(null); // 직접 입력한 경우는 currentProject를 null로 설정
-      // JSON 입력 시 수동 정렬 초기화
-      setManualOrder([]);
+      // JSON 입력 시 상태+의존성 정렬 자동 적용
+      setSortBy('manual');
+      const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
+      setManualOrder(dependencyOrder);
       setJsonInput('');
       setLoadError(null);
     } catch (error) {
