@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Filter, Calendar, CheckCircle, Clock, AlertCircle, BarChart3, PieChart, Eye, Edit, Save, X, FileText, Users, Target, TrendingUp, Play, Pause, RefreshCw, Ban, Plus, Trash2, ExternalLink, Download, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare } from 'lucide-react';
 
 const ProjectDashboard = () => {
   const [tasksData, setTasksData] = useState(null);
@@ -18,11 +18,59 @@ const ProjectDashboard = () => {
   const [currentProject, setCurrentProject] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
+  
+  // 메모 관리 상태
+  const [taskMemos, setTaskMemos] = useState({});
+  const [currentMemo, setCurrentMemo] = useState('');
+  const [originalMemo, setOriginalMemo] = useState(''); // 저장된 원본 메모
 
   // 페이지 로드 시 사용 가능한 프로젝트 목록 로드
   useEffect(() => {
     loadAvailableProjects();
   }, []);
+  
+  // 현재 프로젝트가 변경될 때 메모 로드
+  useEffect(() => {
+    if (currentProject) {
+      loadProjectMemos(currentProject);
+    } else {
+      // 직접 입력 모드일 때 API를 통해 메모 로드
+      loadDirectInputMemos();
+    }
+  }, [currentProject]);
+
+  // 직접 입력 모드 메모 로드
+  const loadDirectInputMemos = async () => {
+    try {
+      const response = await fetch('/api/load-memo/direct_input', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.memos) {
+        setTaskMemos(result.memos);
+        console.log('Direct input memos loaded from file');
+      } else {
+        setTaskMemos({});
+        console.log('No direct input memos found');
+      }
+    } catch (error) {
+      console.log('Failed to load direct input memos:', error);
+      setTaskMemos({});
+    }
+  };
+  
+  // 선택된 태스크가 변경될 때 해당 메모 로드
+  useEffect(() => {
+    if (selectedTask) {
+      const memoKey = selectedTask.id.toString();
+      const savedMemo = taskMemos[memoKey] || '';
+      setCurrentMemo(savedMemo);
+      setOriginalMemo(savedMemo);
+    }
+  }, [selectedTask, taskMemos]);
 
   // 현재 프로젝트가 경로 기반일 때 새로고침 시 자동 로드
   useEffect(() => {
@@ -304,6 +352,82 @@ const ProjectDashboard = () => {
     );
     setTasksData({ ...tasksData, tasks: updatedTasks });
   };
+  
+  // 프로젝트별 메모 파일 로드
+  const loadProjectMemos = async (project) => {
+    if (!project) return;
+    
+    try {
+      const response = await fetch(`/api/load-memo/${project.folderName}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.memos) {
+        setTaskMemos(result.memos);
+        console.log(`Memos loaded from: ${result.path}`);
+      } else {
+        // 메모 파일이 없으면 빈 객체로 초기화
+        setTaskMemos({});
+        console.log(`No task-memo.json found for project: ${project.name}`);
+      }
+    } catch (error) {
+      console.log(`Failed to load memos for project: ${project.name}`, error);
+      setTaskMemos({});
+    }
+  };
+  
+  // 현재 메모 업데이트 (임시 저장만)
+  const handleMemoChange = (memo) => {
+    setCurrentMemo(memo);
+  };
+  
+  // 메모 저장 (API를 통해 파일에 저장)
+  const saveMemo = async () => {
+    if (!selectedTask) return;
+    
+    const memoKey = selectedTask.id.toString();
+    const updatedMemos = {
+      ...taskMemos,
+      [memoKey]: currentMemo
+    };
+    
+    try {
+      const projectName = currentProject ? currentProject.folderName : 'direct_input';
+      
+      const response = await fetch('/api/save-memo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: projectName,
+          memos: updatedMemos
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setTaskMemos(updatedMemos);
+        setOriginalMemo(currentMemo);
+        console.log(`✅ ${result.message}`);
+        
+        // 성공 메시지를 사용자에게 보여주기 (선택적)
+        // alert(`메모가 ${result.path}에 저장되었습니다!`);
+      } else {
+        console.error('Failed to save memo:', result.error);
+        alert('메모 저장에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error saving memo:', error);
+      alert('메모 저장 중 오류가 발생했습니다: ' + error.message);
+    }
+  };
+  
+  // 메모 변경사항이 있는지 확인
+  const hasUnsavedChanges = currentMemo !== originalMemo;
+  
 
   // 토폴로지 정렬 함수 (상태 우선 + 의존성 보조)
   const getTopologicalOrder = (tasks) => {
@@ -353,7 +477,7 @@ const ProjectDashboard = () => {
   };
 
   // Subtask 토폴로지 정렬 함수 (상태 우선 + 의존성 보조)
-  const getSubtaskTopologicalOrder = (subtasks, parentTaskId) => {
+  const getSubtaskTopologicalOrder = (subtasks) => {
     if (!subtasks || subtasks.length === 0) return [];
     
     // 상태별 우선순위 정의 (메인 태스크와 동일)
@@ -1037,7 +1161,7 @@ const ProjectDashboard = () => {
                           Subtasks ({selectedTask.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length}/{selectedTask.subtasks.length})
                         </h4>
                         <div className="space-y-3">
-                          {getSubtaskTopologicalOrder(selectedTask.subtasks, selectedTask.id).map((subtask) => (
+                          {getSubtaskTopologicalOrder(selectedTask.subtasks).map((subtask) => (
                             <div key={subtask.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                               <div className="flex items-start justify-between mb-3">
                                 <div className="flex items-center gap-2">
@@ -1100,6 +1224,42 @@ const ProjectDashboard = () => {
                           <option value="blocked">Blocked</option>
                           <option value="cancelled">Cancelled</option>
                         </select>
+                      </div>
+                      
+                      {/* 메모 영역 */}
+                      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                            <MessageSquare className="w-4 h-4 text-green-500" />
+                            Personal Notes
+                            {hasUnsavedChanges && (
+                              <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes"></span>
+                            )}
+                          </h4>
+                          <button
+                            onClick={saveMemo}
+                            disabled={!hasUnsavedChanges}
+                            className="p-1 text-green-600 hover:text-green-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                            title="Save note"
+                          >
+                            <Save className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <textarea
+                          value={currentMemo}
+                          onChange={(e) => handleMemoChange(e.target.value)}
+                          placeholder="Add your personal notes here..."
+                          className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm resize-none"
+                        />
+                        <div className="mt-2 text-xs text-gray-500">
+                          {hasUnsavedChanges ? (
+                            <span className="text-orange-600">⚠️ Unsaved changes - Click save to write to file</span>
+                          ) : (
+                            currentProject ? 
+                              `Notes saved to: projects/${currentProject.folderName}/task-memo.json` :
+                              "Notes saved to: projects/direct_input/task-memo.json"
+                          )}
+                        </div>
                       </div>
 
                       {selectedTask.dependencies && selectedTask.dependencies.length > 0 && (
