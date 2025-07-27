@@ -562,14 +562,16 @@ const ProjectDashboard = () => {
       return;
     }
     
+    // 저장 중 상태 변경 방지
+    const currentMemoValue = currentMemo;
     const memoKey = selectedTask.id.toString();
     const updatedMemos = {
       ...taskMemos,
-      [memoKey]: currentMemo
+      [memoKey]: currentMemoValue
     };
+    const projectName = currentProject ? currentProject.folderName : 'direct_input';
     
     try {
-      const projectName = currentProject ? currentProject.folderName : 'direct_input';
       console.log(`📤 메모 저장 요청 시작 - 프로젝트: ${projectName}, 태스크: ${selectedTask.id}`);
       
       const response = await fetch('/api/save-memo', {
@@ -582,19 +584,22 @@ const ProjectDashboard = () => {
       });
       
       console.log('📥 서버 응답 수신:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const result = await response.json();
       console.log('📄 응답 데이터:', result);
       
       if (result.success) {
-        setTaskMemos(updatedMemos);
-        setOriginalMemo(currentMemo);
-        console.log(`✅ ${result.message}`);
-        console.log('🔄 상태 업데이트 완료');
-        console.log('📊 저장 후 상태:', {
-          currentMemo: currentMemo.slice(0, 50) + '...',
-          originalMemo: currentMemo.slice(0, 50) + '...',
-          hasUnsavedChanges: currentMemo !== currentMemo // 저장 직후라면 false여야 함
-        });
+        // 상태 업데이트를 React의 다음 렌더링 사이클로 연기
+        setTimeout(() => {
+          setTaskMemos(updatedMemos);
+          setOriginalMemo(currentMemoValue);
+          console.log(`✅ ${result.message}`);
+          console.log('🔄 상태 업데이트 완료');
+        }, 0);
       } else {
         console.error('Failed to save memo:', result.error);
         alert('메모 저장에 실패했습니다: ' + result.error);
@@ -660,8 +665,12 @@ const ProjectDashboard = () => {
   // 대시보드 메모 저장
   const saveDashboardMemo = async () => {
     console.log('🔄 saveDashboardMemo 함수 시작');
+    
+    // 저장 중 상태 변경 방지
+    const currentMemoValue = dashboardMemo;
+    const projectName = currentProject ? currentProject.folderName : 'direct_input';
+    
     try {
-      const projectName = currentProject ? currentProject.folderName : 'direct_input';
       console.log(`📤 대시보드 메모 저장 요청 시작 - 프로젝트: ${projectName}`);
       
       const response = await fetch('/api/save-dashboard-memo', {
@@ -669,23 +678,26 @@ const ProjectDashboard = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           project: projectName,
-          memo: dashboardMemo
+          memo: currentMemoValue
         })
       });
       
       console.log('📥 서버 응답 수신:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       const result = await response.json();
       console.log('📄 응답 데이터:', result);
       
       if (result.success) {
-        setOriginalDashboardMemo(dashboardMemo);
-        console.log(`✅ ${result.message}`);
-        console.log('🔄 대시보드 메모 상태 업데이트 완료');
-        console.log('📊 대시보드 저장 후 상태:', {
-          dashboardMemo: dashboardMemo.slice(0, 50) + '...',
-          originalDashboardMemo: dashboardMemo.slice(0, 50) + '...',
-          hasDashboardUnsavedChanges: dashboardMemo !== dashboardMemo // 저장 직후라면 false여야 함
-        });
+        // 상태 업데이트를 React의 다음 렌더링 사이클로 연기
+        setTimeout(() => {
+          setOriginalDashboardMemo(currentMemoValue);
+          console.log(`✅ ${result.message}`);
+          console.log('🔄 대시보드 메모 상태 업데이트 완료');
+        }, 0);
       } else {
         console.error('Failed to save dashboard memo:', result.error);
         alert('대시보드 메모 저장에 실패했습니다: ' + result.error);
@@ -1422,7 +1434,9 @@ const ProjectDashboard = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                console.log('🔘 대시보드 메모 저장 버튼 클릭됨');
                 saveDashboardMemo();
+                return false;
               }}
               disabled={!hasDashboardUnsavedChanges}
               className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
@@ -1654,7 +1668,9 @@ const ProjectDashboard = () => {
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
+                              console.log('🔘 메모 저장 버튼 클릭됨');
                               saveMemo();
+                              return false;
                             }}
                             disabled={!hasUnsavedChanges}
                             className="p-1 text-green-600 hover:text-green-800 disabled:text-gray-400 disabled:cursor-not-allowed"
