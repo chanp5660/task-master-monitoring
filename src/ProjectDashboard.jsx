@@ -74,7 +74,7 @@ const ProjectDashboard = () => {
 
   // 현재 프로젝트가 경로 기반일 때 새로고침 시 자동 로드
   useEffect(() => {
-    if (currentProject && currentProject.path && !tasksData) {
+    if (currentProject && (currentProject.path || currentProject.externalPath) && !tasksData) {
       loadProjectFromPath(currentProject);
     }
   }, [currentProject]);
@@ -82,18 +82,38 @@ const ProjectDashboard = () => {
   // 사용 가능한 프로젝트 목록 로드
   const loadAvailableProjects = async () => {
     try {
-      const response = await fetch('/api/scan-projects', {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' }
-      });
+      // 일반 프로젝트와 외부 링크 프로젝트를 병렬로 로드
+      const [projectsResponse, externalResponse] = await Promise.all([
+        fetch('/api/scan-projects', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        }),
+        fetch('/api/scan-external-links', {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        })
+      ]);
       
-      const result = await response.json();
+      const projectsResult = await projectsResponse.json();
+      const externalResult = await externalResponse.json();
       
-      if (result.success && result.projects) {
-        setProjects(result.projects);
-        console.log(`Found ${result.projects.length} projects automatically`);
+      let allProjects = [];
+      
+      // 일반 프로젝트 추가
+      if (projectsResult.success && projectsResult.projects) {
+        allProjects = [...projectsResult.projects];
+      }
+      
+      // 외부 링크 프로젝트 추가
+      if (externalResult.success && externalResult.externalProjects) {
+        allProjects = [...allProjects, ...externalResult.externalProjects];
+      }
+      
+      if (allProjects.length > 0) {
+        setProjects(allProjects);
+        console.log(`Found ${allProjects.length} projects (${projectsResult.projects?.length || 0} local, ${externalResult.externalProjects?.length || 0} external)`);
       } else {
-        console.warn('Failed to scan projects, using fallback');
+        console.warn('No projects found, using fallback');
         // 백업용 하드코딩된 프로젝트 목록
         const fallbackProjects = [
           {
@@ -137,8 +157,64 @@ const ProjectDashboard = () => {
     }
   };
 
+  // 외부 경로에서 프로젝트 로드
+  const loadExternalProject = async (project) => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      console.log(`Loading external project from: ${project.externalPath}`);
+      
+      const response = await fetch('/api/load-external-path', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          externalPath: project.externalPath
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load external project');
+      }
+      
+      const data = result.data;
+      
+      // tasks.json 구조 확인 및 적절한 데이터 추출
+      let tasksToSet;
+      if (data.master && data.master.tasks) {
+        tasksToSet = data.master;
+      } else if (data.tasks) {
+        tasksToSet = data;
+      } else if (Array.isArray(data)) {
+        tasksToSet = { tasks: data };
+      } else {
+        throw new Error('Invalid data structure. Expected "master.tasks" or "tasks" array.');
+      }
+      
+      setTasksData(tasksToSet);
+      setCurrentProject(project);
+      // 새 프로젝트 로드 시 수동 정렬 초기화
+      setManualOrder([]);
+      console.log(`External project "${project.name}" loaded successfully from ${result.path}!`);
+    } catch (error) {
+      console.error('Load external project error:', error);
+      setLoadError(`Failed to load external project: ${error.message}`);
+      setCurrentProject(null);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // 경로에서 프로젝트 로드
   const loadProjectFromPath = async (project) => {
+    // 외부 링크 프로젝트인 경우 별도 처리
+    if (project.isExternal && project.externalPath) {
+      return loadExternalProject(project);
+    }
+    
     setIsLoading(true);
     setLoadError(null);
     try {
@@ -222,7 +298,7 @@ const ProjectDashboard = () => {
 
   // 대시보드 새로고침
   const refreshDashboard = () => {
-    if (currentProject && currentProject.path) {
+    if (currentProject && (currentProject.path || currentProject.externalPath)) {
       loadProjectFromPath(currentProject);
     } else {
       window.location.reload();
@@ -665,11 +741,13 @@ const ProjectDashboard = () => {
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {projects.length > 0 ? (
                   projects.map((project) => (
-                    <div key={project.id} className="flex items-center gap-2 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div key={project.id} className={`flex items-center gap-2 p-4 rounded-lg hover:bg-gray-100 transition-colors ${project.isExternal ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-gray-900">{project.name}</div>
                         <div className="text-sm text-gray-600 mt-1">{project.description}</div>
-                        <div className="text-xs text-gray-500 mt-1 font-mono">projects/{project.folderName}/</div>
+                        <div className="text-xs text-gray-500 mt-1 font-mono">
+                          {project.isExternal ? `🔗 ${project.externalPath}` : `projects/${project.folderName}/`}
+                        </div>
                         {project.taskCount !== undefined && (
                           <div className="text-xs text-blue-600 mt-1">📋 {project.taskCount} tasks</div>
                         )}

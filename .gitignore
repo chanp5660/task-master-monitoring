@@ -25,3 +25,4 @@ yarn-error.log*
 # task
 tasks.json
 task-memo.json
+path.txt

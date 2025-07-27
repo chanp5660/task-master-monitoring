@@ -199,6 +199,146 @@ app.get('/api/scan-projects', (req, res) => {
   }
 });
 
+// 외부 경로에서 데이터 로드 API
+app.post('/api/load-external-path', (req, res) => {
+  try {
+    const { externalPath } = req.body;
+    
+    if (!externalPath) {
+      return res.status(400).json({ error: 'External path is required' });
+    }
+    
+    // 절대 경로인지 확인
+    const absolutePath = path.isAbsolute(externalPath) ? externalPath : path.resolve(externalPath);
+    
+    // 파일 존재 여부 확인
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ 
+        error: 'File not found', 
+        path: absolutePath 
+      });
+    }
+    
+    // 파일 읽기
+    const fileContent = fs.readFileSync(absolutePath, 'utf8');
+    
+    // JSON 파싱 시도
+    let data;
+    try {
+      data = JSON.parse(fileContent);
+    } catch (parseError) {
+      return res.status(400).json({ 
+        error: 'Invalid JSON format', 
+        details: parseError.message,
+        path: absolutePath
+      });
+    }
+    
+    console.log(`External data loaded from: ${absolutePath}`);
+    res.json({ 
+      success: true, 
+      data: data,
+      path: absolutePath
+    });
+    
+  } catch (error) {
+    console.error('Error loading external data:', error);
+    res.status(500).json({ 
+      error: 'Failed to load external data', 
+      details: error.message 
+    });
+  }
+});
+
+// 외부 경로 링크 파일 스캔 API (txt 파일에서 경로 읽기)
+app.get('/api/scan-external-links', (req, res) => {
+  try {
+    const projectsPath = path.join(__dirname, 'public', 'projects');
+    
+    if (!fs.existsSync(projectsPath)) {
+      return res.json({ 
+        success: true, 
+        externalProjects: [] 
+      });
+    }
+    
+    const externalProjects = [];
+    const folders = fs.readdirSync(projectsPath, { withFileTypes: true });
+    
+    folders.forEach((folder, index) => {
+      if (folder.isDirectory()) {
+        const folderName = folder.name;
+        const linkFilePath = path.join(projectsPath, folderName, 'path.txt');
+        
+        // path.txt 파일이 있는 폴더는 외부 링크 프로젝트로 인식
+        if (fs.existsSync(linkFilePath)) {
+          try {
+            const externalPath = fs.readFileSync(linkFilePath, 'utf8').trim();
+            
+            if (externalPath && fs.existsSync(externalPath)) {
+              // 외부 경로의 데이터를 미리 읽어서 프로젝트 정보 추출
+              try {
+                const tasksData = JSON.parse(fs.readFileSync(externalPath, 'utf8'));
+                
+                let projectName = folderName;
+                let description = `${folderName} 프로젝트 (외부 링크)`;
+                
+                if (tasksData.master?.projectName) {
+                  projectName = tasksData.master.projectName;
+                } else if (tasksData.projectName) {
+                  projectName = tasksData.projectName;
+                }
+                
+                if (tasksData.master?.description) {
+                  description = tasksData.master.description;
+                } else if (tasksData.description) {
+                  description = tasksData.description;
+                }
+                
+                externalProjects.push({
+                  id: `ext_${index + 1}`,
+                  name: `${projectName} 🔗`,
+                  folderName: folderName,
+                  externalPath: externalPath,
+                  description: `${description} (링크: ${externalPath})`,
+                  taskCount: tasksData.master?.tasks?.length || tasksData.tasks?.length || 0,
+                  isExternal: true
+                });
+              } catch (parseError) {
+                // JSON 파싱 실패 시에도 기본 정보로 추가
+                externalProjects.push({
+                  id: `ext_${index + 1}`,
+                  name: `${folderName} 🔗`,
+                  folderName: folderName,
+                  externalPath: externalPath,
+                  description: `${folderName} 프로젝트 (외부 링크, 파싱 오류)`,
+                  taskCount: 0,
+                  isExternal: true
+                });
+              }
+            }
+          } catch (readError) {
+            console.warn(`Failed to read path.txt for ${folderName}:`, readError.message);
+          }
+        }
+      }
+    });
+    
+    console.log(`Found ${externalProjects.length} external link projects`);
+    res.json({ 
+      success: true, 
+      externalProjects: externalProjects
+    });
+    
+  } catch (error) {
+    console.error('Error scanning external links:', error);
+    res.status(500).json({ 
+      error: 'Failed to scan external links', 
+      details: error.message 
+    });
+  }
+});
+
 // React 앱 서빙 (모든 다른 라우트) - 프로덕션 모드에서만
 app.get('*', (_, res) => {
   const buildIndexPath = path.join(__dirname, 'build', 'index.html');
@@ -216,4 +356,6 @@ app.listen(PORT, () => {
   console.log(`  GET  /api/load-memo/:project - Load memo from file`);
   console.log(`  POST /api/create-project-dir - Create project directory`);
   console.log(`  GET  /api/scan-projects - Scan projects folder for available projects`);
+  console.log(`  POST /api/load-external-path - Load data from external path`);
+  console.log(`  GET  /api/scan-external-links - Scan for external link projects (path.txt files)`);
 });
