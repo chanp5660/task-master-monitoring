@@ -30,6 +30,7 @@ const ProjectDashboard = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectPath, setNewProjectPath] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  
 
   // 페이지 로드 시 사용 가능한 프로젝트 목록 로드
   useEffect(() => {
@@ -555,7 +556,11 @@ const ProjectDashboard = () => {
   
   // 메모 저장 (API를 통해 파일에 저장)
   const saveMemo = async () => {
-    if (!selectedTask) return;
+    console.log('🔄 saveMemo 함수 시작');
+    if (!selectedTask) {
+      console.log('❌ selectedTask가 없음, 저장 중단');
+      return;
+    }
     
     const memoKey = selectedTask.id.toString();
     const updatedMemos = {
@@ -565,6 +570,7 @@ const ProjectDashboard = () => {
     
     try {
       const projectName = currentProject ? currentProject.folderName : 'direct_input';
+      console.log(`📤 메모 저장 요청 시작 - 프로젝트: ${projectName}, 태스크: ${selectedTask.id}`);
       
       const response = await fetch('/api/save-memo', {
         method: 'POST',
@@ -575,15 +581,20 @@ const ProjectDashboard = () => {
         })
       });
       
+      console.log('📥 서버 응답 수신:', response.status, response.statusText);
       const result = await response.json();
+      console.log('📄 응답 데이터:', result);
       
       if (result.success) {
         setTaskMemos(updatedMemos);
         setOriginalMemo(currentMemo);
         console.log(`✅ ${result.message}`);
-        
-        // 성공 메시지를 사용자에게 보여주기 (선택적)
-        // alert(`메모가 ${result.path}에 저장되었습니다!`);
+        console.log('🔄 상태 업데이트 완료');
+        console.log('📊 저장 후 상태:', {
+          currentMemo: currentMemo.slice(0, 50) + '...',
+          originalMemo: currentMemo.slice(0, 50) + '...',
+          hasUnsavedChanges: currentMemo !== currentMemo // 저장 직후라면 false여야 함
+        });
       } else {
         console.error('Failed to save memo:', result.error);
         alert('메모 저장에 실패했습니다: ' + result.error);
@@ -592,11 +603,59 @@ const ProjectDashboard = () => {
       console.error('Error saving memo:', error);
       alert('메모 저장 중 오류가 발생했습니다: ' + error.message);
     }
+    console.log('🏁 saveMemo 함수 완료');
   };
   
   // 메모 변경사항이 있는지 확인
   const hasUnsavedChanges = currentMemo !== originalMemo;
   const hasDashboardUnsavedChanges = dashboardMemo !== originalDashboardMemo;
+  
+  
+  // 상태 변경 디버깅용 useEffect
+  useEffect(() => {
+    console.log('🔍 hasUnsavedChanges 상태 변경:', {
+      currentMemo: currentMemo.slice(0, 30) + '...',
+      originalMemo: originalMemo.slice(0, 30) + '...',
+      hasUnsavedChanges
+    });
+  }, [hasUnsavedChanges, currentMemo, originalMemo]);
+
+  useEffect(() => {
+    console.log('🔍 hasDashboardUnsavedChanges 상태 변경:', {
+      dashboardMemo: dashboardMemo.slice(0, 30) + '...',
+      originalDashboardMemo: originalDashboardMemo.slice(0, 30) + '...',
+      hasDashboardUnsavedChanges
+    });
+  }, [hasDashboardUnsavedChanges, dashboardMemo, originalDashboardMemo]);
+
+  // Ctrl+S 키보드 단축키 핸들러
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.ctrlKey && event.key === 's') {
+        console.log('⌨️ Ctrl+S 감지됨');
+        event.preventDefault();
+        
+        // 선택된 태스크가 있고 메모가 변경된 경우 태스크 메모 저장
+        if (selectedTask && hasUnsavedChanges) {
+          console.log('📝 태스크 메모 저장 조건 충족 - saveMemo() 호출');
+          saveMemo();
+        }
+        // 대시보드 메모가 변경된 경우 대시보드 메모 저장
+        else if (hasDashboardUnsavedChanges) {
+          console.log('📋 대시보드 메모 저장 조건 충족 - saveDashboardMemo() 호출');
+          saveDashboardMemo();
+        } else {
+          console.log('❌ 저장할 메모 변경사항 없음');
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedTask, hasUnsavedChanges, hasDashboardUnsavedChanges]);
   
   // 대시보드 메모 로드
   const loadDashboardMemo = async () => {
@@ -628,8 +687,10 @@ const ProjectDashboard = () => {
   
   // 대시보드 메모 저장
   const saveDashboardMemo = async () => {
+    console.log('🔄 saveDashboardMemo 함수 시작');
     try {
       const projectName = currentProject ? currentProject.folderName : 'direct_input';
+      console.log(`📤 대시보드 메모 저장 요청 시작 - 프로젝트: ${projectName}`);
       
       const response = await fetch('/api/save-dashboard-memo', {
         method: 'POST',
@@ -640,11 +701,19 @@ const ProjectDashboard = () => {
         })
       });
       
+      console.log('📥 서버 응답 수신:', response.status, response.statusText);
       const result = await response.json();
+      console.log('📄 응답 데이터:', result);
       
       if (result.success) {
         setOriginalDashboardMemo(dashboardMemo);
         console.log(`✅ ${result.message}`);
+        console.log('🔄 대시보드 메모 상태 업데이트 완료');
+        console.log('📊 대시보드 저장 후 상태:', {
+          dashboardMemo: dashboardMemo.slice(0, 50) + '...',
+          originalDashboardMemo: dashboardMemo.slice(0, 50) + '...',
+          hasDashboardUnsavedChanges: dashboardMemo !== dashboardMemo // 저장 직후라면 false여야 함
+        });
       } else {
         console.error('Failed to save dashboard memo:', result.error);
         alert('대시보드 메모 저장에 실패했습니다: ' + result.error);
@@ -653,6 +722,7 @@ const ProjectDashboard = () => {
       console.error('Error saving dashboard memo:', error);
       alert('대시보드 메모 저장 중 오류가 발생했습니다: ' + error.message);
     }
+    console.log('🏁 saveDashboardMemo 함수 완료');
   };
   
   // 새 프로젝트 추가 함수
@@ -1750,6 +1820,7 @@ const ProjectDashboard = () => {
           </div>
         </div>
       )}
+      
     </div>
   );
 };
