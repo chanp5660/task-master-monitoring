@@ -21,6 +21,10 @@ const ProjectDashboard = () => {
   const [currentMemo, setCurrentMemo] = useState('');
   const [originalMemo, setOriginalMemo] = useState(''); // 저장된 원본 메모
   
+  // 대시보드 메모 상태
+  const [dashboardMemo, setDashboardMemo] = useState('');
+  const [originalDashboardMemo, setOriginalDashboardMemo] = useState('');
+  
   // 프로젝트 추가 모달 상태
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -40,6 +44,11 @@ const ProjectDashboard = () => {
       // 직접 입력 모드일 때 API를 통해 메모 로드
       loadDirectInputMemos();
     }
+  }, [currentProject]);
+  
+  // 대시보드 메모 로드
+  useEffect(() => {
+    loadDashboardMemo();
   }, [currentProject]);
 
   // 직접 입력 모드 메모 로드
@@ -587,6 +596,64 @@ const ProjectDashboard = () => {
   
   // 메모 변경사항이 있는지 확인
   const hasUnsavedChanges = currentMemo !== originalMemo;
+  const hasDashboardUnsavedChanges = dashboardMemo !== originalDashboardMemo;
+  
+  // 대시보드 메모 로드
+  const loadDashboardMemo = async () => {
+    try {
+      const projectName = currentProject ? currentProject.folderName : 'direct_input';
+      const response = await fetch(`/api/load-dashboard-memo/${projectName}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success && result.memo) {
+        setDashboardMemo(result.memo);
+        setOriginalDashboardMemo(result.memo);
+        console.log(`Dashboard memo loaded from: ${result.path}`);
+      } else {
+        setDashboardMemo('');
+        setOriginalDashboardMemo('');
+        console.log(`No dashboard memo found for project: ${projectName}`);
+      }
+    } catch (error) {
+      const projectName = currentProject ? currentProject.folderName : 'direct_input';
+      console.log(`Failed to load dashboard memo for project: ${projectName}`, error);
+      setDashboardMemo('');
+      setOriginalDashboardMemo('');
+    }
+  };
+  
+  // 대시보드 메모 저장
+  const saveDashboardMemo = async () => {
+    try {
+      const projectName = currentProject ? currentProject.folderName : 'direct_input';
+      
+      const response = await fetch('/api/save-dashboard-memo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project: projectName,
+          memo: dashboardMemo
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        setOriginalDashboardMemo(dashboardMemo);
+        console.log(`✅ ${result.message}`);
+      } else {
+        console.error('Failed to save dashboard memo:', result.error);
+        alert('대시보드 메모 저장에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error saving dashboard memo:', error);
+      alert('대시보드 메모 저장 중 오류가 발생했습니다: ' + error.message);
+    }
+  };
   
   // 새 프로젝트 추가 함수
   const handleAddProject = async () => {
@@ -1277,6 +1344,42 @@ const ProjectDashboard = () => {
             </div>
           </div>
         )}
+        
+        {/* 대시보드 메모 영역 */}
+        <div className="bg-white rounded-lg shadow mb-6 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-green-500" />
+              Project Notes
+              {hasDashboardUnsavedChanges && (
+                <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes"></span>
+              )}
+            </h3>
+            <button
+              onClick={saveDashboardMemo}
+              disabled={!hasDashboardUnsavedChanges}
+              className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
+            >
+              <Save className="w-4 h-4" />
+              Save Notes
+            </button>
+          </div>
+          <textarea
+            value={dashboardMemo}
+            onChange={(e) => setDashboardMemo(e.target.value)}
+            placeholder="프로젝트 전반에 대한 메모를 여기에 작성하세요..."
+            className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm resize-none"
+          />
+          <div className="mt-2 text-xs text-gray-500">
+            {hasDashboardUnsavedChanges ? (
+              <span className="text-orange-600">⚠️ 저장되지 않은 변경사항이 있습니다</span>
+            ) : (
+              currentProject ? 
+                `저장 위치: projects/${currentProject.folderName}/dashboard-memo.json` :
+                "저장 위치: projects/direct_input/dashboard-memo.json"
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 작업 상세 모달 */}

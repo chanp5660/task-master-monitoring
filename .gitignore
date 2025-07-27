@@ -25,4 +25,5 @@ yarn-error.log*
 # task
 tasks.json
 task-memo.json
+dashboard-memo.json
 path.txt

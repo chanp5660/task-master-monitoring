@@ -85,6 +85,76 @@ app.get('/api/load-memo/:project', (req, res) => {
   }
 });
 
+// 대시보드 메모 저장 API
+app.post('/api/save-dashboard-memo', (req, res) => {
+  try {
+    const { project, memo } = req.body;
+    
+    if (!project || memo === undefined) {
+      return res.status(400).json({ error: 'Project and memo are required' });
+    }
+    
+    // 프로젝트 폴더 경로
+    const projectPath = path.join(__dirname, 'public', 'projects', project);
+    const dashboardMemoFilePath = path.join(projectPath, 'dashboard-memo.json');
+    
+    // 폴더가 없으면 생성
+    if (!fs.existsSync(projectPath)) {
+      fs.mkdirSync(projectPath, { recursive: true });
+    }
+    
+    // 대시보드 메모 파일 저장
+    fs.writeFileSync(dashboardMemoFilePath, JSON.stringify({ memo }, null, 2), 'utf8');
+    
+    console.log(`Dashboard memo saved to: ${dashboardMemoFilePath}`);
+    res.json({ 
+      success: true, 
+      message: `Dashboard memo saved to projects/${project}/dashboard-memo.json`,
+      path: `projects/${project}/dashboard-memo.json`
+    });
+    
+  } catch (error) {
+    console.error('Error saving dashboard memo:', error);
+    res.status(500).json({ 
+      error: 'Failed to save dashboard memo', 
+      details: error.message 
+    });
+  }
+});
+
+// 대시보드 메모 로드 API
+app.get('/api/load-dashboard-memo/:project', (req, res) => {
+  try {
+    const { project } = req.params;
+    const dashboardMemoFilePath = path.join(__dirname, 'public', 'projects', project, 'dashboard-memo.json');
+    
+    if (fs.existsSync(dashboardMemoFilePath)) {
+      const memoData = fs.readFileSync(dashboardMemoFilePath, 'utf8');
+      const { memo } = JSON.parse(memoData);
+      
+      console.log(`Dashboard memo loaded from: ${dashboardMemoFilePath}`);
+      res.json({ 
+        success: true, 
+        memo,
+        path: `projects/${project}/dashboard-memo.json`
+      });
+    } else {
+      res.json({ 
+        success: false, 
+        message: 'No dashboard memo file found',
+        memo: ''
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error loading dashboard memo:', error);
+    res.status(500).json({ 
+      error: 'Failed to load dashboard memo', 
+      details: error.message 
+    });
+  }
+});
+
 // 프로젝트 디렉토리 생성 API
 app.post('/api/create-project-dir', (req, res) => {
   try {
@@ -438,6 +508,8 @@ app.listen(PORT, () => {
   console.log(`API endpoints:`);
   console.log(`  POST /api/save-memo - Save memo to file`);
   console.log(`  GET  /api/load-memo/:project - Load memo from file`);
+  console.log(`  POST /api/save-dashboard-memo - Save dashboard memo to file`);
+  console.log(`  GET  /api/load-dashboard-memo/:project - Load dashboard memo from file`);
   console.log(`  POST /api/create-project-dir - Create project directory`);
   console.log(`  POST /api/create-project - Create new project with external path link`);
   console.log(`  GET  /api/scan-projects - Scan projects folder for available projects`);
