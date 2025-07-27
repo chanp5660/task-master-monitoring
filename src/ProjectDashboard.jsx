@@ -1356,7 +1356,12 @@ const ProjectDashboard = () => {
               )}
             </h3>
             <button
-              onClick={saveDashboardMemo}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                saveDashboardMemo();
+              }}
               disabled={!hasDashboardUnsavedChanges}
               className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
             >
@@ -1583,7 +1588,12 @@ const ProjectDashboard = () => {
                             )}
                           </h4>
                           <button
-                            onClick={saveMemo}
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              saveMemo();
+                            }}
                             disabled={!hasUnsavedChanges}
                             className="p-1 text-green-600 hover:text-green-800 disabled:text-gray-400 disabled:cursor-not-allowed"
                             title="Save note"
