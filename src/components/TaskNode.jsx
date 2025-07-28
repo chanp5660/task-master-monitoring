@@ -91,19 +91,6 @@ const TaskNode = ({ data }) => {
       
       {/* 노드 내용 */}
       <div className="p-3">
-        {/* 헤더 */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              #{task.id}
-            </span>
-            <div className={`w-2 h-2 rounded-full ${getPriorityColor(task.priority)}`}></div>
-          </div>
-          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-            {getStatusIcon(task.status)}
-            <span className="ml-1 capitalize">{task.status}</span>
-          </span>
-        </div>
 
         {/* 제목 */}
         <h3 className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2 leading-tight">
@@ -115,11 +102,16 @@ const TaskNode = ({ data }) => {
           {task.description}
         </p>
 
-        {/* 하단 정보 */}
-        <div className="flex items-center justify-between text-xs">
-          <div className="flex items-center gap-1">
-            <span className="text-gray-500">Priority:</span>
-            <span className="capitalize font-medium">{task.priority}</span>
+        {/* 하단 정보 - task-id, priority, subtasks */}
+        <div className="flex items-center justify-between text-xs mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded">
+              #{task.id}
+            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-gray-500">Priority:</span>
+              <span className="capitalize font-medium">{task.priority}</span>
+            </div>
           </div>
           {task.subtasks && task.subtasks.length > 0 && (
             <div className="text-gray-500">
@@ -128,26 +120,23 @@ const TaskNode = ({ data }) => {
           )}
         </div>
 
-        {/* 의존성 정보 */}
-        {task.dependencies && task.dependencies.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-200">
-            <div className="text-xs text-gray-500">
-              Depends on: {task.dependencies.join(', ')}
-            </div>
+        {/* 의존성 정보와 상태 */}
+        <div className="flex items-center justify-between text-xs">
+          <div>
+            {task.dependencies && task.dependencies.length > 0 && (
+              <span className="text-gray-500">
+                Depends on: {task.dependencies.join(', ')}
+              </span>
+            )}
           </div>
-        )}
+          <div>
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+              {getStatusIcon(task.status)}
+              <span className="ml-1 capitalize">{task.status}</span>
+            </span>
+          </div>
+        </div>
 
-        {/* 상태 표시 */}
-        {hasUncompletedDependencies() && (
-          <div className="mt-2 text-xs text-red-600 font-medium">
-            ⛔ Waiting for dependencies
-          </div>
-        )}
-        {isReadyToStart() && (
-          <div className="mt-2 text-xs text-blue-600 font-medium">
-            ✅ Ready to start
-          </div>
-        )}
       </div>
 
       {/* 출력 핸들 (하단) */}
