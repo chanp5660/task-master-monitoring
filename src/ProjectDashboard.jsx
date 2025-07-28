@@ -37,20 +37,23 @@ const ProjectDashboard = () => {
     loadAvailableProjects();
   }, []);
   
-  // 현재 프로젝트가 변경될 때 메모 로드
+  // 현재 프로젝트가 변경될 때 메모 로드 (tasksData가 있을 때만)
   useEffect(() => {
+    if (!tasksData) return; // 데이터가 없으면 메모 로드하지 않음
+    
     if (currentProject) {
       loadProjectMemos(currentProject);
     } else {
       // 직접 입력 모드일 때 API를 통해 메모 로드
       loadDirectInputMemos();
     }
-  }, [currentProject]);
+  }, [currentProject, tasksData]);
   
-  // 대시보드 메모 로드
+  // 대시보드 메모 로드 (tasksData가 있을 때만)
   useEffect(() => {
+    if (!tasksData) return; // 데이터가 없으면 메모 로드하지 않음
     loadDashboardMemo();
-  }, [currentProject]);
+  }, [currentProject, tasksData]);
 
   // 직접 입력 모드 메모 로드
   const loadDirectInputMemos = async () => {
@@ -94,14 +97,8 @@ const ProjectDashboard = () => {
       setCurrentMemo(savedMemo);
       setIsMemoModified(false);
     }
-  }, [selectedTask]); // taskMemos 의존성 제거
+  }, [selectedTask, taskMemos]); // taskMemos 의존성 추가
 
-  // 현재 프로젝트가 경로 기반일 때 새로고침 시 자동 로드
-  useEffect(() => {
-    if (currentProject && (currentProject.path || currentProject.externalPath) && !tasksData) {
-      loadProjectFromPath(currentProject);
-    }
-  }, [currentProject]);
 
   // 사용 가능한 프로젝트 목록 로드
   const loadAvailableProjects = async () => {
@@ -570,14 +567,7 @@ const ProjectDashboard = () => {
   
   // 메모 저장 (API를 통해 파일에 저장)
   const saveMemo = async () => {
-    console.log('🔄 saveMemo 함수 시작');
-    console.log('📊 현재 상태:', {
-      selectedTask: selectedTask?.id,
-      currentProject: currentProject?.name,
-      tasksData: !!tasksData
-    });
     if (!selectedTask) {
-      console.log('❌ selectedTask가 없음, 저장 중단');
       return;
     }
     
@@ -591,8 +581,6 @@ const ProjectDashboard = () => {
     const projectName = currentProject ? currentProject.folderName : 'direct_input';
     
     try {
-      console.log(`📤 메모 저장 요청 시작 - 프로젝트: ${projectName}, 태스크: ${selectedTask.id}`);
-      
       const response = await fetch('/api/save-memo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -602,35 +590,17 @@ const ProjectDashboard = () => {
         })
       });
       
-      console.log('📥 서버 응답 수신:', response.status, response.statusText);
-      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const result = await response.json();
-      console.log('📄 응답 데이터:', result);
       
       if (result.success) {
-        // 상태 업데이트를 즉시 실행
-        console.log('📊 저장 후 상태 업데이트 전:', {
-          selectedTask: selectedTask?.id,
-          currentProject: currentProject?.name,
-          tasksData: !!tasksData
-        });
+        // 상태 업데이트
         setTaskMemos(updatedMemos);
         setIsMemoModified(false);
-        console.log(`✅ ${result.message}`);
-        console.log('🔄 상태 업데이트 완료');
-        
-        // 상태 변경 후 잠시 대기하여 확인
-        setTimeout(() => {
-          console.log('📊 저장 완료 1초 후 상태:', {
-            selectedTask: selectedTask?.id,
-            currentProject: currentProject?.name,
-            tasksData: !!tasksData
-          });
-        }, 1000);
+        console.log(`✅ Memo saved: ${result.message}`);
       } else {
         console.error('Failed to save memo:', result.error);
         alert('메모 저장에 실패했습니다: ' + result.error);
@@ -639,7 +609,6 @@ const ProjectDashboard = () => {
       console.error('Error saving memo:', error);
       alert('메모 저장 중 오류가 발생했습니다: ' + error.message);
     }
-    console.log('🏁 saveMemo 함수 완료');
   };
   
 
@@ -674,15 +643,11 @@ const ProjectDashboard = () => {
   
   // 대시보드 메모 저장
   const saveDashboardMemo = async () => {
-    console.log('🔄 saveDashboardMemo 함수 시작');
-    
     // 저장 중 상태 변경 방지
     const currentMemoValue = dashboardMemo;
     const projectName = currentProject ? currentProject.folderName : 'direct_input';
     
     try {
-      console.log(`📤 대시보드 메모 저장 요청 시작 - 프로젝트: ${projectName}`);
-      
       const response = await fetch('/api/save-dashboard-memo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -692,20 +657,16 @@ const ProjectDashboard = () => {
         })
       });
       
-      console.log('📥 서버 응답 수신:', response.status, response.statusText);
-      
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
       
       const result = await response.json();
-      console.log('📄 응답 데이터:', result);
       
       if (result.success) {
-        // 상태 업데이트를 즉시 실행
+        // 상태 업데이트
         setIsDashboardMemoModified(false);
-        console.log(`✅ ${result.message}`);
-        console.log('🔄 대시보드 메모 상태 업데이트 완료');
+        console.log(`✅ Dashboard memo saved: ${result.message}`);
       } else {
         console.error('Failed to save dashboard memo:', result.error);
         alert('대시보드 메모 저장에 실패했습니다: ' + result.error);
@@ -714,7 +675,6 @@ const ProjectDashboard = () => {
       console.error('Error saving dashboard memo:', error);
       alert('대시보드 메모 저장 중 오류가 발생했습니다: ' + error.message);
     }
-    console.log('🏁 saveDashboardMemo 함수 완료');
   };
   
   // 새 프로젝트 추가 함수
@@ -1412,13 +1372,7 @@ const ProjectDashboard = () => {
             </h3>
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                console.log('🔘 대시보드 메모 저장 버튼 클릭됨');
-                saveDashboardMemo();
-              }}
-              disabled={false}
+              onClick={saveDashboardMemo}
               className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
             >
               <Save className="w-4 h-4" />
@@ -1625,13 +1579,7 @@ const ProjectDashboard = () => {
                           </h4>
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              console.log('🔘 메모 저장 버튼 클릭됨');
-                              saveMemo();
-                            }}
-                            disabled={false}
+                            onClick={saveMemo}
                             className="p-1 text-green-600 hover:text-green-800 disabled:text-gray-400 disabled:cursor-not-allowed"
                             title="Save note"
                           >
