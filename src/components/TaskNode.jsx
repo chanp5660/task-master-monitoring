@@ -3,7 +3,7 @@ import { Handle, Position } from 'reactflow';
 import { CheckCircle, Clock, AlertCircle, Play, Pause, Ban, Eye } from 'lucide-react';
 
 const TaskNode = ({ data }) => {
-  const { task } = data;
+  const { task, isSimpleMode } = data;
 
   // 상태별 색상
   const getStatusColor = (status) => {
@@ -71,6 +71,50 @@ const TaskNode = ({ data }) => {
   const hasUncompletedDependencies = () => {
     return data.hasUncompletedDependencies || false;
   };
+
+  if (isSimpleMode) {
+    return (
+      <div 
+        className={`relative rounded-lg border-2 shadow-sm hover:shadow-md transition-shadow cursor-pointer min-w-[150px] max-w-[200px] ${
+          hasUncompletedDependencies() 
+            ? 'bg-red-50 border-red-300' 
+            : isReadyToStart()
+              ? 'bg-blue-50 border-blue-300'
+              : 'bg-white border-gray-200'
+        }`}
+      >
+        {/* 입력 핸들 (상단) */}
+        <Handle
+          type="target"
+          position={Position.Top}
+          className="w-3 h-3 bg-gray-400 border-2 border-white"
+        />
+        
+        {/* 단순 노드 내용 */}
+        <div className="p-2">
+          {/* 제목 */}
+          <h3 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2 leading-tight">
+            {task.title.replace(/^#\d+\s*/, '')}
+          </h3>
+          
+          {/* 상태만 표시 */}
+          <div className="flex justify-center">
+            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+              {getStatusIcon(task.status)}
+              <span className="ml-1 capitalize">{task.status}</span>
+            </span>
+          </div>
+        </div>
+        
+        {/* 출력 핸들 (하단) */}
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          className="w-3 h-3 bg-gray-400 border-2 border-white"
+        />
+      </div>
+    );
+  }
 
   return (
     <div 

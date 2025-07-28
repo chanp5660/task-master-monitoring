@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -10,9 +10,11 @@ import ReactFlow, {
   MiniMap,
   Background,
   BackgroundVariant,
+  Panel,
 } from 'reactflow';
 import dagre from 'dagre';
 import TaskNode from './TaskNode';
+import { Minimize2, Maximize2 } from 'lucide-react';
 
 import 'reactflow/dist/style.css';
 
@@ -26,6 +28,11 @@ const DiagramView = ({
   hasUncompletedDependencies, 
   isReadyToStart 
 }) => {
+  const [isSimpleMode, setIsSimpleMode] = useState(false);
+  
+  const toggleSimpleMode = () => {
+    setIsSimpleMode(prev => !prev);
+  };
   // 다이어그램 데이터 생성
   const { nodes: initialNodes, edges: initialEdges } = useMemo(() => {
     if (!tasks || tasks.length === 0) {
@@ -40,6 +47,7 @@ const DiagramView = ({
         task: task,
         hasUncompletedDependencies: hasUncompletedDependencies ? hasUncompletedDependencies(task) : false,
         isReadyToStart: isReadyToStart ? isReadyToStart(task) : false,
+        isSimpleMode: isSimpleMode,
       },
       position: { x: 0, y: 0 }, // 초기 위치, 레이아웃에서 재계산
     }));
@@ -64,10 +72,16 @@ const DiagramView = ({
     );
 
     return getLayoutedElements(nodes, edges);
-  }, [tasks, hasUncompletedDependencies, isReadyToStart]);
+  }, [tasks, hasUncompletedDependencies, isReadyToStart, isSimpleMode]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // isSimpleMode 변경 시 노드와 엣지 업데이트
+  React.useEffect(() => {
+    setNodes(initialNodes);
+    setEdges(initialEdges);
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
 
   // 레이아웃 계산 함수 (Dagre 사용)
   function getLayoutedElements(nodes, edges, direction = 'TB') {
@@ -201,6 +215,16 @@ const DiagramView = ({
           size={1}
           color="#e5e7eb"
         />
+        <Panel position="top-left">
+          <button
+            onClick={toggleSimpleMode}
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors text-sm font-medium text-gray-700"
+            title={isSimpleMode ? '상세 모드로 전환' : '단순 모드로 전환'}
+          >
+            {isSimpleMode ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+            {isSimpleMode ? '상세 모드' : '단순 모드'}
+          </button>
+        </Panel>
       </ReactFlow>
     </div>
   );
