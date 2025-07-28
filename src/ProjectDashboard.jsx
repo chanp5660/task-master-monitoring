@@ -19,11 +19,11 @@ const ProjectDashboard = () => {
   // 메모 관리 상태
   const [taskMemos, setTaskMemos] = useState({});
   const [currentMemo, setCurrentMemo] = useState('');
-  const [originalMemo, setOriginalMemo] = useState(''); // 저장된 원본 메모
+  const [isMemoModified, setIsMemoModified] = useState(false);
   
   // 대시보드 메모 상태
   const [dashboardMemo, setDashboardMemo] = useState('');
-  const [originalDashboardMemo, setOriginalDashboardMemo] = useState('');
+  const [isDashboardMemoModified, setIsDashboardMemoModified] = useState(false);
   
   // 프로젝트 추가 모달 상태
   const [showAddProjectModal, setShowAddProjectModal] = useState(false);
@@ -64,9 +64,20 @@ const ProjectDashboard = () => {
       
       if (result.success && result.memos) {
         setTaskMemos(result.memos);
+        // 현재 선택된 태스크의 메모 업데이트
+        if (selectedTask) {
+          const memoKey = selectedTask.id.toString();
+          const savedMemo = result.memos[memoKey] || '';
+          setCurrentMemo(savedMemo);
+          setIsMemoModified(false);
+        }
         console.log('Direct input memos loaded from file');
       } else {
         setTaskMemos({});
+        if (selectedTask) {
+          setCurrentMemo('');
+          setIsMemoModified(false);
+        }
         console.log('No direct input memos found');
       }
     } catch (error) {
@@ -81,9 +92,9 @@ const ProjectDashboard = () => {
       const memoKey = selectedTask.id.toString();
       const savedMemo = taskMemos[memoKey] || '';
       setCurrentMemo(savedMemo);
-      setOriginalMemo(savedMemo);
+      setIsMemoModified(false);
     }
-  }, [selectedTask, taskMemos]);
+  }, [selectedTask]); // taskMemos 의존성 제거
 
   // 현재 프로젝트가 경로 기반일 때 새로고침 시 자동 로드
   useEffect(() => {
@@ -528,10 +539,21 @@ const ProjectDashboard = () => {
       
       if (result.success && result.memos) {
         setTaskMemos(result.memos);
+        // 현재 선택된 태스크의 메모 업데이트
+        if (selectedTask) {
+          const memoKey = selectedTask.id.toString();
+          const savedMemo = result.memos[memoKey] || '';
+          setCurrentMemo(savedMemo);
+          setIsMemoModified(false);
+        }
         console.log(`Memos loaded from: ${result.path}`);
       } else {
         // 메모 파일이 없으면 빈 객체로 초기화
         setTaskMemos({});
+        if (selectedTask) {
+          setCurrentMemo('');
+          setIsMemoModified(false);
+        }
         console.log(`No task-memo.json found for project: ${project.name}`);
       }
     } catch (error) {
@@ -540,14 +562,20 @@ const ProjectDashboard = () => {
     }
   };
   
-  // 현재 메모 업데이트 (임시 저장만)
+  // 현재 메모 업데이트
   const handleMemoChange = (memo) => {
     setCurrentMemo(memo);
+    setIsMemoModified(true);
   };
   
   // 메모 저장 (API를 통해 파일에 저장)
   const saveMemo = async () => {
     console.log('🔄 saveMemo 함수 시작');
+    console.log('📊 현재 상태:', {
+      selectedTask: selectedTask?.id,
+      currentProject: currentProject?.name,
+      tasksData: !!tasksData
+    });
     if (!selectedTask) {
       console.log('❌ selectedTask가 없음, 저장 중단');
       return;
@@ -584,13 +612,25 @@ const ProjectDashboard = () => {
       console.log('📄 응답 데이터:', result);
       
       if (result.success) {
-        // 상태 업데이트를 React의 다음 렌더링 사이클로 연기
+        // 상태 업데이트를 즉시 실행
+        console.log('📊 저장 후 상태 업데이트 전:', {
+          selectedTask: selectedTask?.id,
+          currentProject: currentProject?.name,
+          tasksData: !!tasksData
+        });
+        setTaskMemos(updatedMemos);
+        setIsMemoModified(false);
+        console.log(`✅ ${result.message}`);
+        console.log('🔄 상태 업데이트 완료');
+        
+        // 상태 변경 후 잠시 대기하여 확인
         setTimeout(() => {
-          setTaskMemos(updatedMemos);
-          setOriginalMemo(currentMemoValue);
-          console.log(`✅ ${result.message}`);
-          console.log('🔄 상태 업데이트 완료');
-        }, 0);
+          console.log('📊 저장 완료 1초 후 상태:', {
+            selectedTask: selectedTask?.id,
+            currentProject: currentProject?.name,
+            tasksData: !!tasksData
+          });
+        }, 1000);
       } else {
         console.error('Failed to save memo:', result.error);
         alert('메모 저장에 실패했습니다: ' + result.error);
@@ -602,27 +642,6 @@ const ProjectDashboard = () => {
     console.log('🏁 saveMemo 함수 완료');
   };
   
-  // 메모 변경사항이 있는지 확인
-  const hasUnsavedChanges = currentMemo !== originalMemo;
-  const hasDashboardUnsavedChanges = dashboardMemo !== originalDashboardMemo;
-  
-  
-  // 상태 변경 디버깅용 useEffect
-  useEffect(() => {
-    console.log('🔍 hasUnsavedChanges 상태 변경:', {
-      currentMemo: currentMemo.slice(0, 30) + '...',
-      originalMemo: originalMemo.slice(0, 30) + '...',
-      hasUnsavedChanges
-    });
-  }, [hasUnsavedChanges, currentMemo, originalMemo]);
-
-  useEffect(() => {
-    console.log('🔍 hasDashboardUnsavedChanges 상태 변경:', {
-      dashboardMemo: dashboardMemo.slice(0, 30) + '...',
-      originalDashboardMemo: originalDashboardMemo.slice(0, 30) + '...',
-      hasDashboardUnsavedChanges
-    });
-  }, [hasDashboardUnsavedChanges, dashboardMemo, originalDashboardMemo]);
 
   
   // 대시보드 메모 로드
@@ -638,18 +657,18 @@ const ProjectDashboard = () => {
       
       if (result.success && result.memo) {
         setDashboardMemo(result.memo);
-        setOriginalDashboardMemo(result.memo);
+        setIsDashboardMemoModified(false);
         console.log(`Dashboard memo loaded from: ${result.path}`);
       } else {
         setDashboardMemo('');
-        setOriginalDashboardMemo('');
+        setIsDashboardMemoModified(false);
         console.log(`No dashboard memo found for project: ${projectName}`);
       }
     } catch (error) {
       const projectName = currentProject ? currentProject.folderName : 'direct_input';
       console.log(`Failed to load dashboard memo for project: ${projectName}`, error);
       setDashboardMemo('');
-      setOriginalDashboardMemo('');
+      setIsDashboardMemoModified(false);
     }
   };
   
@@ -683,12 +702,10 @@ const ProjectDashboard = () => {
       console.log('📄 응답 데이터:', result);
       
       if (result.success) {
-        // 상태 업데이트를 React의 다음 렌더링 사이클로 연기
-        setTimeout(() => {
-          setOriginalDashboardMemo(currentMemoValue);
-          console.log(`✅ ${result.message}`);
-          console.log('🔄 대시보드 메모 상태 업데이트 완료');
-        }, 0);
+        // 상태 업데이트를 즉시 실행
+        setIsDashboardMemoModified(false);
+        console.log(`✅ ${result.message}`);
+        console.log('🔄 대시보드 메모 상태 업데이트 완료');
       } else {
         console.error('Failed to save dashboard memo:', result.error);
         alert('대시보드 메모 저장에 실패했습니다: ' + result.error);
@@ -1389,8 +1406,8 @@ const ProjectDashboard = () => {
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-green-500" />
               Project Notes
-              {hasDashboardUnsavedChanges && (
-                <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes"></span>
+              {isDashboardMemoModified && (
+                <span className="w-2 h-2 bg-orange-500 rounded-full" title="Modified"></span>
               )}
             </h3>
             <button
@@ -1400,9 +1417,8 @@ const ProjectDashboard = () => {
                 e.stopPropagation();
                 console.log('🔘 대시보드 메모 저장 버튼 클릭됨');
                 saveDashboardMemo();
-                return false;
               }}
-              disabled={!hasDashboardUnsavedChanges}
+              disabled={false}
               className="bg-green-500 hover:bg-green-600 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
             >
               <Save className="w-4 h-4" />
@@ -1411,18 +1427,22 @@ const ProjectDashboard = () => {
           </div>
           <textarea
             value={dashboardMemo}
-            onChange={(e) => setDashboardMemo(e.target.value)}
+            onChange={(e) => {
+              setDashboardMemo(e.target.value);
+              setIsDashboardMemoModified(true);
+            }}
             placeholder="프로젝트 전반에 대한 메모를 여기에 작성하세요..."
             className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm resize-none"
           />
           <div className="mt-2 text-xs text-gray-500">
-            {hasDashboardUnsavedChanges ? (
-              <span className="text-orange-600">⚠️ 저장되지 않은 변경사항이 있습니다</span>
-            ) : (
-              currentProject ? 
-                `저장 위치: projects/${currentProject.folderName}/dashboard-memo.json` :
-                "저장 위치: projects/direct_input/dashboard-memo.json"
+            {isDashboardMemoModified && (
+              <span className="text-orange-600">⚠️ 수정됨 - 저장하세요</span>
             )}
+            <div className="mt-1">
+              저장 위치: {currentProject ? 
+                `projects/${currentProject.folderName}/dashboard-memo.json` :
+                "projects/direct_input/dashboard-memo.json"}
+            </div>
           </div>
         </div>
       </div>
@@ -1599,8 +1619,8 @@ const ProjectDashboard = () => {
                           <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-green-500" />
                             Personal Notes
-                            {hasUnsavedChanges && (
-                              <span className="w-2 h-2 bg-orange-500 rounded-full" title="Unsaved changes"></span>
+                            {isMemoModified && (
+                              <span className="w-2 h-2 bg-orange-500 rounded-full" title="Modified"></span>
                             )}
                           </h4>
                           <button
@@ -1610,9 +1630,8 @@ const ProjectDashboard = () => {
                               e.stopPropagation();
                               console.log('🔘 메모 저장 버튼 클릭됨');
                               saveMemo();
-                              return false;
                             }}
-                            disabled={!hasUnsavedChanges}
+                            disabled={false}
                             className="p-1 text-green-600 hover:text-green-800 disabled:text-gray-400 disabled:cursor-not-allowed"
                             title="Save note"
                           >
@@ -1626,13 +1645,14 @@ const ProjectDashboard = () => {
                           className="w-full h-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm resize-none"
                         />
                         <div className="mt-2 text-xs text-gray-500">
-                          {hasUnsavedChanges ? (
-                            <span className="text-orange-600">⚠️ Unsaved changes - Click save to write to file</span>
-                          ) : (
-                            currentProject ? 
-                              `Notes saved to: projects/${currentProject.folderName}/task-memo.json` :
-                              "Notes saved to: projects/direct_input/task-memo.json"
+                          {isMemoModified && (
+                            <span className="text-orange-600">⚠️ 수정됨 - 저장하세요</span>
                           )}
+                          <div className="mt-1">
+                            저장 위치: {currentProject ? 
+                              `projects/${currentProject.folderName}/task-memo.json` :
+                              "projects/direct_input/task-memo.json"}
+                          </div>
                         </div>
                       </div>
 
