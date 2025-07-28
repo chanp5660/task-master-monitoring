@@ -47,13 +47,13 @@ const ProjectDashboard = () => {
       // 직접 입력 모드일 때 API를 통해 메모 로드
       loadDirectInputMemos();
     }
-  }, [currentProject, tasksData]);
+  }, [currentProject?.id ?? null, tasksData]); // null 병합 연산자로 안전한 접근
   
   // 대시보드 메모 로드 (tasksData가 있을 때만)
   useEffect(() => {
     if (!tasksData) return; // 데이터가 없으면 메모 로드하지 않음
     loadDashboardMemo();
-  }, [currentProject, tasksData]);
+  }, [currentProject?.id ?? null, tasksData]); // null 병합 연산자로 안전한 접근
 
   // 직접 입력 모드 메모 로드
   const loadDirectInputMemos = async () => {
@@ -221,6 +221,10 @@ const ProjectDashboard = () => {
       const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
       setManualOrder(dependencyOrder);
       console.log(`External project "${project.name}" loaded successfully from ${result.path}!`);
+      
+      // 프로젝트 로드 후 메모 로드
+      loadProjectMemos(project);
+      loadDashboardMemo();
     } catch (error) {
       console.error('Load external project error:', error);
       setLoadError(`Failed to load external project: ${error.message}`);
@@ -310,6 +314,10 @@ const ProjectDashboard = () => {
       const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
       setManualOrder(dependencyOrder);
       console.log(`Project "${project.name}" loaded successfully!`);
+      
+      // 프로젝트 로드 후 메모 로드
+      loadProjectMemos(project);
+      loadDashboardMemo();
     } catch (error) {
       console.error('Load project error:', error);
       setLoadError(`Failed to load project: ${error.message}`);
@@ -357,6 +365,10 @@ const ProjectDashboard = () => {
       setManualOrder(dependencyOrder);
       setJsonInput('');
       setLoadError(null);
+      
+      // JSON 입력 후 메모 로드
+      loadDirectInputMemos();
+      loadDashboardMemo();
     } catch (error) {
       setLoadError('Invalid JSON format: ' + error.message);
     }
