@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare, Plus, FolderPlus, Github } from 'lucide-react';
+import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare, Plus, FolderPlus, Github, Network } from 'lucide-react';
+import DiagramView from './components/DiagramView';
 
 const ProjectDashboard = () => {
   const [tasksData, setTasksData] = useState(null);
@@ -1031,19 +1032,30 @@ const ProjectDashboard = () => {
               <div className="flex bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('cards')}
-                  className={`px-3 py-1 rounded text-sm ${
-                    viewMode === 'cards' ? 'bg-white shadow-sm' : 'text-gray-600'
+                  className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                    viewMode === 'cards' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
                   }`}
                 >
+                  <BarChart3 className="w-4 h-4" />
                   Cards
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`px-3 py-1 rounded text-sm ${
-                    viewMode === 'list' ? 'bg-white shadow-sm' : 'text-gray-600'
+                  className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                    viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
                   }`}
                 >
+                  <FileText className="w-4 h-4" />
                   List
+                </button>
+                <button
+                  onClick={() => setViewMode('diagram')}
+                  className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
+                    viewMode === 'diagram' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+                  }`}
+                >
+                  <Network className="w-4 h-4" />
+                  Diagram
                 </button>
               </div>
               
@@ -1208,7 +1220,14 @@ const ProjectDashboard = () => {
         </div>
 
         {/* 작업 목록 */}
-        {viewMode === 'cards' ? (
+        {viewMode === 'diagram' ? (
+          <DiagramView 
+            tasks={filteredTasks}
+            onTaskClick={setSelectedTask}
+            hasUncompletedDependencies={hasUncompletedDependencies}
+            isReadyToStart={isReadyToStart}
+          />
+        ) : viewMode === 'cards' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredTasks.map((task) => (
               <div key={task.id} className={`rounded-lg shadow hover:shadow-lg transition-shadow ${
