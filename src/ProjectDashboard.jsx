@@ -513,15 +513,6 @@ const ProjectDashboard = () => {
     };
   }, [tasksData]);
 
-  // 작업 상태 업데이트
-  const updateTaskStatus = (taskId, newStatus) => {
-    const updatedTasks = tasksData.tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, status: newStatus }
-        : task
-    );
-    setTasksData({ ...tasksData, tasks: updatedTasks });
-  };
   
   // 프로젝트별 메모 파일 로드
   const loadProjectMemos = async (project) => {
@@ -1253,7 +1244,7 @@ const ProjectDashboard = () => {
                     </div>
                   </div>
                   
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{task.title}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{task.title.replace(/^#\d+\s*/, '')}</h3>
                   <p className="text-sm text-gray-600 mb-4 line-clamp-3">{task.description}</p>
                   
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
@@ -1305,20 +1296,6 @@ const ProjectDashboard = () => {
                         <ChevronDown className="w-3 h-3" />
                       </button>
                     </div>
-                    <select
-                      value={task.status}
-                      onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    >
-                      <option value="pending">Pending</option>
-                      <option value="in-progress">In Progress</option>
-                      <option value="review">Review</option>
-                      <option value="done">Done</option>
-                      <option value="completed">Completed</option>
-                      <option value="deferred">Deferred</option>
-                      <option value="blocked">Blocked</option>
-                      <option value="cancelled">Cancelled</option>
-                    </select>
                   </div>
                 </div>
               </div>
@@ -1330,10 +1307,11 @@ const ProjectDashboard = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dependencies</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -1346,29 +1324,29 @@ const ProjectDashboard = () => {
                           ? 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-400'
                           : 'hover:bg-gray-50'
                     }`}>
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-500">#{task.id}</span>
-                            <span className="text-sm font-medium text-gray-900">{task.title}</span>
-                          </div>
-                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
-                        </div>
-                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
                           {getStatusIcon(task.status)}
                           <span className="ml-1 capitalize">{task.status}</span>
                         </span>
                       </td>
+                      <td className="px-6 py-4">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{task.title.replace(/^#\d+\s*/, '')}</div>
+                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-medium text-gray-900">#{task.id}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {task.dependencies?.length > 0 ? task.dependencies.join(', ') : '0'}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1">
                           <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
                           <span className="text-sm text-gray-900 capitalize">{task.priority}</span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {task.dependencies?.length > 0 ? task.dependencies.join(', ') : '0'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex gap-2 items-center">
@@ -1395,20 +1373,6 @@ const ProjectDashboard = () => {
                           >
                             <ChevronDown className="w-4 h-4" />
                           </button>
-                          <select
-                            value={task.status}
-                            onChange={(e) => updateTaskStatus(task.id, e.target.value)}
-                            className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="review">Review</option>
-                            <option value="done">Done</option>
-                            <option value="completed">Completed</option>
-                            <option value="deferred">Deferred</option>
-                            <option value="blocked">Blocked</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
                         </div>
                       </td>
                     </tr>
@@ -1494,7 +1458,7 @@ const ProjectDashboard = () => {
                       <span className="text-sm text-gray-600 capitalize">{selectedTask.priority} priority</span>
                     </div>
                   </div>
-                  <h2 className="text-xl font-bold text-gray-900 leading-tight">{selectedTask.title}</h2>
+                  <h2 className="text-xl font-bold text-gray-900 leading-tight">{selectedTask.title.replace(/^#\d+\s*/, '')}</h2>
                 </div>
                 <button
                   onClick={() => setSelectedTask(null)}
@@ -1628,30 +1592,6 @@ const ProjectDashboard = () => {
                   
                   <div className="lg:col-span-1">
                     <div className="sticky top-6 space-y-6">
-                      {/* 상태 업데이트 */}
-                      <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-                        <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                          <RefreshCw className="w-4 h-4 text-blue-500" />
-                          Update Status
-                        </h4>
-                        <select
-                          value={selectedTask.status}
-                          onChange={(e) => {
-                            updateTaskStatus(selectedTask.id, e.target.value);
-                            setSelectedTask({...selectedTask, status: e.target.value});
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="in-progress">In Progress</option>
-                          <option value="review">Review</option>
-                          <option value="done">Done</option>
-                          <option value="completed">Completed</option>
-                          <option value="deferred">Deferred</option>
-                          <option value="blocked">Blocked</option>
-                          <option value="cancelled">Cancelled</option>
-                        </select>
-                      </div>
                       
                       {/* 메모 영역 */}
                       <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
