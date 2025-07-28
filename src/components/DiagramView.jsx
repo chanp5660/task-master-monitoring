@@ -53,12 +53,12 @@ const DiagramView = ({
         type: 'smoothstep',
         animated: task.status === 'in-progress',
         style: {
-          strokeWidth: 2,
-          stroke: task.status === 'in-progress' ? '#3b82f6' : '#6b7280',
+          strokeWidth: 3,
+          stroke: task.status === 'in-progress' ? '#3b82f6' : '#1f2937',
         },
         markerEnd: {
           type: 'arrowclosed',
-          color: task.status === 'in-progress' ? '#3b82f6' : '#6b7280',
+          color: task.status === 'in-progress' ? '#3b82f6' : '#1f2937',
         },
       })) || []
     );
@@ -173,7 +173,7 @@ const DiagramView = ({
         minZoom={0.3}
         maxZoom={1.5}
         defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-        nodesDraggable={false}
+        nodesDraggable={true}
         nodesConnectable={false}
         elementsSelectable={true}
         selectNodesOnDrag={false}
