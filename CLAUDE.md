@@ -9,6 +9,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `npm test` - Run tests in watch mode  
 - `npm run build` - Build production bundle
 - `npm run eject` - Eject from Create React App (one-way operation)
+- `npm run dev` - Start both frontend and backend servers concurrently
+- `npm run server` - Start backend server only (port 3001)  
+- `npm run start:prod` - Build and serve production bundle
 
 ### Testing
 - `npm test` - Run all tests with Jest and React Testing Library
@@ -16,22 +19,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-This is a React-based project dashboard application for visualizing and managing project tasks. The codebase follows Create React App conventions with additional Tailwind CSS styling.
+This is a React-based project dashboard application (Task Master AI) for visualizing and managing project tasks. The codebase follows Create React App conventions with modular component structure, custom hooks, and Express backend for data persistence.
 
-### Key Components
+### Key Components Structure
 
 **Main Application Flow:**
 - `src/App.js` - Simple root component that renders ProjectDashboard
-- `src/ProjectDashboard.jsx` - Core dashboard component handling all functionality
+- `src/ProjectDashboard.jsx` - Core dashboard component coordinating all functionality
+- `server.js` - Express backend server for API endpoints
 
-**ProjectDashboard Component Architecture:**
-- **Data Loading**: Supports two input methods:
-  1. JSON paste input for direct data entry
-  2. File-based project loading from predefined projects in `/public/projects/`
-- **Data Structure**: Expects task data in specific JSON format with either `master.tasks` or `tasks` array
-- **State Management**: Uses React hooks for local state (tasks, filters, view modes, selected task)
-- **Task Display**: Supports card view and list view modes with filtering by status and priority
-- **Task Management**: Interactive status updates, detailed task modals with subtasks support
+**Component Architecture:**
+- `src/components/DiagramView.jsx` - React Flow based dependency visualization
+- `src/components/TaskStats.jsx` - Task statistics and progress tracking
+- `src/components/TaskDetailModal.jsx` - Task detail modal with subtasks
+- `src/components/FilterBar.jsx` - Filtering and sorting controls  
+- `src/components/ProjectList.jsx` - Project management interface
+- `src/components/TaskNode.jsx` - Custom React Flow nodes for diagram view
+
+**Custom Hooks:**
+- `src/hooks/useProjects.js` - Project loading and management
+- `src/hooks/useMemos.js` - Memo system integration  
+- `src/hooks/useTaskFiltering.js` - Task filtering and search logic
+- `src/hooks/useTaskOrder.js` - Task ordering and dependency sorting
+
+**Utilities:**
+- `src/utils/taskUtils.js` - Task status, priority, dependency utilities
+- `src/utils/projectUtils.js` - Project data parsing and validation
+
+### Core Features
+
+**Data Loading Methods:**
+1. JSON paste input for direct data entry
+2. File-based project loading from `/public/projects/`
+3. External project linking via `path.txt` files
+4. Dynamic project scanning and auto-discovery
+
+**View Modes:**
+- **Card View**: Traditional card-based task display
+- **List View**: Compact tabular task listing  
+- **Diagram View**: Interactive dependency graph with React Flow
+
+**Task Management:**
+- Interactive status updates with dependency validation
+- Priority-based color coding and filtering
+- Subtask support with nested progress tracking
+- Dependency-aware topological sorting
 
 ### Data Structure Requirements
 
@@ -52,43 +84,92 @@ or
 
 Each task should have: `id`, `title`, `description`, `status`, `priority`, optional `subtasks`, `dependencies`, `details`, `testStrategy`
 
+### Backend API System
+
+**Express Server** (`server.js`):
+- **Port**: 3001 (configurable via environment variables)
+- **CORS**: Enabled for frontend communication
+- **File System**: Local JSON file storage for persistence
+
+**API Endpoints:**
+- `POST /api/save-memo` - Save task-specific memos
+- `GET /api/load-memo/:project` - Load task memos
+- `POST /api/save-dashboard-memo` - Save project-level memos  
+- `GET /api/load-dashboard-memo/:project` - Load dashboard memos
+- `POST /api/create-project-dir` - Create project directories
+- `POST /api/create-project` - Create new projects with external links
+- `GET /api/scan-projects` - Scan local projects
+- `POST /api/load-external-path` - Load external JSON files
+
 ### Project File System
 
-- **Static Projects**: Located in `/public/projects/` with `tasks.json` files
-- **Predefined Projects**: Hardcoded list in component includes CPUE prediction and test projects
-- **Sample Data**: Example task structures available in `/projects/sample-project/tasks.json`
+**Local Projects**: Located in `/public/projects/` with following structure:
+```
+/public/projects/{project-name}/
+├── tasks.json              # Task data  
+├── task-memo.json          # Task-specific memos
+├── dashboard-memo.json     # Project-level memos
+└── path.txt               # External file path link (optional)
+```
 
-### Styling and UI
+**External Projects**: Linked via `path.txt` containing absolute file paths
 
-- **Framework**: Tailwind CSS for styling
-- **Icons**: Lucide React icon library
-- **Responsive Design**: Grid layouts adapt to screen sizes
-- **Color System**: Status-based color coding (green=done, blue=in-progress, etc.)
+### Technology Stack
+
+**Frontend:**
+- **React**: 19.1.0 (latest version)
+- **Tailwind CSS**: 3.4.17 (responsive styling)
+- **Lucide React**: 0.525.0 (icon library)
+- **React Flow**: 11.11.4 (diagram visualization)
+- **Dagre**: 0.8.5 (automatic graph layout)
+
+**Backend:**
+- **Express**: 4.19.2 (web server)
+- **CORS**: 2.8.5 (cross-origin support)
+
+**Development:**
+- **Concurrently**: 9.2.0 (parallel server execution)
+- **Create React App**: 5.0.1 (build system)
 
 ### Task Status Workflow
 
-Supported statuses: pending, in-progress, review, done, completed, deferred, blocked, cancelled
+**Supported Statuses:**
+- `pending` - 대기 중 (⏳)
+- `in-progress` - 진행 중 (🔄)  
+- `review` - 검토 중 (👀)
+- `done` - 완료 (✅)
+- `completed` - 완성 (🎉)
+- `deferred` - 연기됨 (⏸️)
+- `blocked` - 차단됨 (🚫)
+- `cancelled` - 취소됨 (❌)
 
-Priority levels: critical, high, medium, low
+**Priority Levels:**
+- `critical` - 긴급 (🔴)
+- `high` - 높음 (🟠)
+- `medium` - 보통 (🟡)  
+- `low` - 낮음 (🟢)
 
 ## Development Patterns
 
-### Component Organization
-- Single large component approach (ProjectDashboard handles all logic)
-- Inline styling with Tailwind classes
-- Event handlers defined as arrow functions within component
+### Component Architecture
+- **Modular Design**: Components split by functionality (hooks, utils, components)
+- **Custom Hooks**: Logic extraction for reusability (useProjects, useMemos, etc.)
+- **Tailwind Styling**: Utility-first CSS with responsive design
+- **React Flow Integration**: Advanced diagram visualization with custom nodes
 
 ### State Management
-- Local React state with useState hooks
-- Derived state using useMemo for filtered data and statistics
-- No external state management library
+- **React Hooks**: useState, useEffect, useMemo for local state
+- **Custom Hooks**: Encapsulated business logic and API calls
+- **Props Drilling**: State passed through component hierarchy
+- **No External Store**: Self-contained state management
 
-### Data Processing
-- Client-side filtering and search
-- Real-time statistics calculation
-- Task status updates modify state directly
+### Data Flow
+- **API Integration**: RESTful backend communication
+- **File Persistence**: JSON files for data storage
+- **Real-time Updates**: Immediate UI feedback with backend sync
+- **Error Handling**: Graceful degradation and user feedback
 
-This is a self-contained dashboard application focused on task visualization and management, designed to work with various project task data formats.
+This is a comprehensive full-stack dashboard application with advanced task visualization, dependency management, and persistent memo system.
 
 
 ## Git Commit Message Convention
