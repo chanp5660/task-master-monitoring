@@ -1,6 +1,6 @@
 {
   "name": "task-master-monitoring",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "private": false,
   "description": "Project task dashboard monitoring tool with visualization and management features",
   "main": "server.js",
