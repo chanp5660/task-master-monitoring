@@ -1,10 +1,6 @@
 # 소스 파일 (빌드된 파일만 포함)
 src/
 
-# 특정 프로젝트 폴더 제외 (test 프로젝트만 포함)
-public/projects/cpue_prediction_dataset/
-build/projects/cpue_prediction_dataset/
-
 # 개발/테스트 파일
 *.test.js
 *.spec.js
