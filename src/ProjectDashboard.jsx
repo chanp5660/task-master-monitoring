@@ -379,6 +379,33 @@ const ProjectDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* 대시보드 메모 */}
+        <div className="mt-6 bg-white rounded-lg shadow border border-gray-200">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 text-green-500" />
+                Dashboard Memo
+              </h4>
+              {memoHook.isDashboardMemoModified && (
+                <button
+                  onClick={memoHook.saveDashboardMemo}
+                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm inline-flex items-center gap-2 transition-colors"
+                >
+                  <Save className="w-4 h-4" />
+                  Save
+                </button>
+              )}
+            </div>
+            <textarea
+              value={memoHook.dashboardMemo}
+              onChange={(e) => memoHook.handleDashboardMemoChange(e.target.value)}
+              placeholder="프로젝트 전체 메모, 할 일, 아이디어 등을 기록하세요..."
+              className="w-full h-32 p-3 border border-gray-300 rounded-lg text-sm resize-y focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            />
+          </div>
+        </div>
       </div>
 
       <TaskDetailModal
@@ -388,33 +415,6 @@ const ProjectDashboard = () => {
         getSubtaskTopologicalOrder={getSubtaskTopologicalOrder}
         memoHook={memoHook}
       />
-
-      {/* 대시보드 메모 */}
-      <div className="fixed bottom-4 right-4 w-80 bg-white rounded-lg shadow-lg border border-gray-200">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h4 className="font-semibold text-gray-900 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-green-500" />
-              Dashboard Memo
-            </h4>
-            {memoHook.isDashboardMemoModified && (
-              <button
-                onClick={memoHook.saveDashboardMemo}
-                className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs inline-flex items-center gap-1 transition-colors"
-              >
-                <Save className="w-3 h-3" />
-                Save
-              </button>
-            )}
-          </div>
-          <textarea
-            value={memoHook.dashboardMemo}
-            onChange={(e) => memoHook.handleDashboardMemoChange(e.target.value)}
-            placeholder="Dashboard notes..."
-            className="w-full h-24 p-2 border border-gray-300 rounded text-sm resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-          />
-        </div>
-      </div>
     </div>
   );
 };
