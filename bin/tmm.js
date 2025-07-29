@@ -3,9 +3,55 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 
 // 패키지 루트 디렉토리 찾기
 const packageRoot = path.dirname(__dirname);
+
+// 현재 버전 정보
+const packageJson = require(path.join(packageRoot, 'package.json'));
+const currentVersion = packageJson.version;
+
+// 최신 버전 체크 함수
+async function checkForUpdates() {
+  return new Promise((resolve) => {
+    const options = {
+      hostname: 'registry.npmjs.org',
+      path: '/task-master-monitoring/latest',
+      method: 'GET',
+      timeout: 3000
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        try {
+          const info = JSON.parse(data);
+          const latestVersion = info.version;
+          
+          if (latestVersion && latestVersion !== currentVersion) {
+            console.log(`\n🆕 새 버전이 있습니다!`);
+            console.log(`   현재 버전: ${currentVersion}`);
+            console.log(`   최신 버전: ${latestVersion}`);
+            console.log(`   업데이트: npm install -g task-master-monitoring@latest\n`);
+          }
+        } catch (error) {
+          // 버전 체크 실패 시 조용히 무시
+        }
+        resolve();
+      });
+    });
+
+    req.on('error', () => resolve()); // 네트워크 오류 시 조용히 무시
+    req.on('timeout', () => {
+      req.destroy();
+      resolve();
+    });
+    
+    req.end();
+  });
+}
 
 // 도움말 메시지
 function showHelp() {
@@ -31,9 +77,9 @@ Task Master Monitoring (tmm) - Project Dashboard Tool
 }
 
 // 버전 정보 표시
-function showVersion() {
-  const packageJson = require(path.join(packageRoot, 'package.json'));
-  console.log(`Task Master Monitoring v${packageJson.version}`);
+async function showVersion() {
+  console.log(`Task Master Monitoring v${currentVersion}`);
+  await checkForUpdates();
 }
 
 // 인자 파싱
@@ -119,6 +165,9 @@ async function startServer(port) {
   console.log('종료하려면 Ctrl+C를 누르세요.');
   console.log('');
 
+  // 백그라운드에서 업데이트 체크 (서버 시작을 방해하지 않음)
+  checkForUpdates().catch(() => {});
+
   // 환경 변수 설정
   const env = {
     ...process.env,
@@ -148,7 +197,7 @@ async function main() {
   }
 
   if (options.version) {
-    showVersion();
+    await showVersion();
     return;
   }
 
