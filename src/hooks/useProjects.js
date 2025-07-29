@@ -334,6 +334,8 @@ const useProjects = () => {
     setShowAddProjectModal,
     setNewProjectName,
     setNewProjectPath,
+    setShowDeleteConfirmModal,
+    setProjectToDelete,
     setDeleteConfirmText,
     
     // 액션 함수
