@@ -22,6 +22,21 @@ const ProjectDashboard = () => {
   const [viewMode, setViewMode] = useState('list');
   const [jsonInput, setJsonInput] = useState('');
   const [showJsonInputModal, setShowJsonInputModal] = useState(false);
+  const [isDashboardMemoCollapsed, setIsDashboardMemoCollapsed] = useState(false);
+
+  // 메모 내용에 따른 동적 높이 계산
+  const calculateMemoHeight = (memoContent) => {
+    if (!memoContent) return 'h-20';
+    
+    const lines = memoContent.split('\n').length;
+    const contentLines = Math.max(lines, Math.ceil(memoContent.length / 80)); // 약 80자 기준
+    
+    if (contentLines <= 3) return 'h-20';
+    if (contentLines <= 6) return 'h-32';
+    if (contentLines <= 10) return 'h-48';
+    if (contentLines <= 15) return 'h-64';
+    return 'h-80';
+  };
 
   // 커스텀 훅 사용
   const projectHook = useProjects();
@@ -388,21 +403,36 @@ const ProjectDashboard = () => {
                 <MessageSquare className="w-4 h-4 text-green-500" />
                 Dashboard Memo
               </h4>
-              {memoHook.isDashboardMemoModified && (
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={memoHook.saveDashboardMemo}
-                  className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm inline-flex items-center gap-2 transition-colors"
+                  onClick={() => setIsDashboardMemoCollapsed(!isDashboardMemoCollapsed)}
+                  className="text-gray-500 hover:text-gray-700 p-1 transition-colors"
+                  title={isDashboardMemoCollapsed ? "펼치기" : "접기"}
                 >
-                  <Save className="w-4 h-4" />
-                  Save
+                  {isDashboardMemoCollapsed ? (
+                    <ChevronDown className="w-4 h-4" />
+                  ) : (
+                    <ChevronUp className="w-4 h-4" />
+                  )}
                 </button>
-              )}
+                {memoHook.isDashboardMemoModified && (
+                  <button
+                    onClick={memoHook.saveDashboardMemo}
+                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded text-sm inline-flex items-center gap-2 transition-colors"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </button>
+                )}
+              </div>
             </div>
             <textarea
               value={memoHook.dashboardMemo}
               onChange={(e) => memoHook.handleDashboardMemoChange(e.target.value)}
               placeholder="프로젝트 전체 메모, 할 일, 아이디어 등을 기록하세요..."
-              className="w-full h-32 p-3 border border-gray-300 rounded-lg text-sm resize-y focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              className={`w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300 ${
+                isDashboardMemoCollapsed ? 'h-20' : calculateMemoHeight(memoHook.dashboardMemo)
+              }`}
             />
           </div>
         </div>
