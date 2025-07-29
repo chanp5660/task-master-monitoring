@@ -444,6 +444,7 @@ const ProjectDashboard = () => {
         tasksData={tasksData}
         getSubtaskTopologicalOrder={getSubtaskTopologicalOrder}
         memoHook={memoHook}
+        onTaskSelect={setSelectedTask}
       />
     </div>
   );

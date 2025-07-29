@@ -7,7 +7,8 @@ const TaskDetailModal = ({
   onClose, 
   tasksData, 
   getSubtaskTopologicalOrder,
-  memoHook 
+  memoHook,
+  onTaskSelect 
 }) => {
   const [expandedSubtasks, setExpandedSubtasks] = useState({});
 
@@ -67,7 +68,11 @@ const TaskDetailModal = ({
                 {selectedTask.dependencies.map((depId) => {
                   const depTask = tasksData.tasks.find(t => t.id === depId);
                   return depTask ? (
-                    <div key={depId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div 
+                      key={depId} 
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
+                      onClick={() => onTaskSelect && onTaskSelect(depTask)}
+                    >
                       <span className="text-sm font-medium text-gray-600">#{depTask.id}</span>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(depTask.status)}`}>
                         {getStatusIcon(depTask.status)}
