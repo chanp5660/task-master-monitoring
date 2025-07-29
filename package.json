@@ -1,6 +1,6 @@
 {
   "name": "task-master-monitoring",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": false,
   "description": "Project task dashboard monitoring tool with visualization and management features",
   "main": "server.js",
@@ -8,7 +8,13 @@
     "task-master-monitoring": "./bin/tmm.js",
     "tmm": "./bin/tmm.js"
   },
-  "keywords": ["task", "dashboard", "project", "monitoring", "visualization"],
+  "keywords": [
+    "task",
+    "dashboard",
+    "project",
+    "monitoring",
+    "visualization"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
