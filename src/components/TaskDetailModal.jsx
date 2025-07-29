@@ -68,6 +68,7 @@ const TaskDetailModal = ({
                   const depTask = tasksData.tasks.find(t => t.id === depId);
                   return depTask ? (
                     <div key={depId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm font-medium text-gray-600">#{depTask.id}</span>
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(depTask.status)}`}>
                         {getStatusIcon(depTask.status)}
                         <span className="ml-1">{depTask.status}</span>
@@ -121,7 +122,10 @@ const TaskDetailModal = ({
                       </span>
                       
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-gray-900 truncate">{subtask.title}</div>
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-gray-900 truncate">{subtask.title}</div>
+                          <span className="text-sm font-medium text-gray-500">#{subtask.id}</span>
+                        </div>
                         {!expandedSubtasks[subtask.id] && (
                           <div className="text-sm text-gray-600 truncate">{subtask.description}</div>
                         )}
