@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare, Plus, FolderPlus, Github, Network } from 'lucide-react';
+import { Search, CheckCircle, Clock, AlertCircle, BarChart3, Eye, Edit, Save, X, FileText, Users, Target, Play, Pause, RefreshCw, Ban, ExternalLink, ChevronUp, ChevronDown, MessageSquare, Plus, FolderPlus, Github, Network, Trash } from 'lucide-react';
 import DiagramView from './components/DiagramView';
 
 const ProjectDashboard = () => {
@@ -31,6 +31,15 @@ const ProjectDashboard = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectPath, setNewProjectPath] = useState('');
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  
+  // 프로젝트 삭제 상태
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  
+  // JSON 입력 모달 상태
+  const [showJsonInputModal, setShowJsonInputModal] = useState(false);
   
 
   // 페이지 로드 시 사용 가능한 프로젝트 목록 로드
@@ -373,6 +382,99 @@ const ProjectDashboard = () => {
     } catch (error) {
       setLoadError('Invalid JSON format: ' + error.message);
     }
+  };
+  
+  // JSON 모달에서 입력 처리
+  const handleJsonModalSubmit = () => {
+    // 이전 에러 상태 초기화
+    setLoadError(null);
+    
+    if (!jsonInput.trim()) {
+      setLoadError('Please enter JSON data');
+      return;
+    }
+
+    try {
+      const data = JSON.parse(jsonInput);
+      
+      // tasks.json 구조 확인 및 적절한 데이터 추출
+      let tasksToSet;
+      if (data.master && data.master.tasks) {
+        tasksToSet = data.master;
+      } else if (data.tasks) {
+        tasksToSet = data;
+      } else if (Array.isArray(data)) {
+        tasksToSet = { tasks: data };
+      } else {
+        throw new Error('Invalid data structure. Expected "master.tasks" or "tasks" array.');
+      }
+      
+      setTasksData(tasksToSet);
+      setCurrentProject(null); // 직접 입력한 경우는 currentProject를 null로 설정
+      // JSON 입력 시 상태+의존성 정렬 자동 적용
+      const dependencyOrder = getTopologicalOrder(tasksToSet.tasks);
+      setManualOrder(dependencyOrder);
+      setJsonInput('');
+      setLoadError(null);
+      
+      // JSON 입력 후 메모 로드
+      loadDirectInputMemos();
+      loadDashboardMemo();
+      
+      // 성공 시 모달 닫기
+      setShowJsonInputModal(false);
+    } catch (error) {
+      setLoadError('Invalid JSON format: ' + error.message);
+    }
+  };
+  
+  // 스마트 텍스트 축약 함수 (반응형)
+  const truncateProjectName = (name, screenSize = 'lg') => {
+    // 화면 크기별 최대 길이 설정
+    const maxLengths = {
+      sm: 18,  // 모바일 - 증가
+      md: 24,  // 태블릿 - 증가
+      lg: 30   // 데스크탑 - 증가
+    };
+    
+    const maxLength = maxLengths[screenSize] || maxLengths.lg;
+    
+    if (name.length <= maxLength) return name;
+    
+    // 공백이 있는 경우 단어 단위로 자르기
+    if (name.includes(' ')) {
+      const words = name.split(' ');
+      let truncated = '';
+      
+      for (let word of words) {
+        const nextLength = truncated + (truncated ? ' ' : '') + word;
+        if (nextLength.length > maxLength - 3) {
+          break;
+        }
+        truncated += (truncated ? ' ' : '') + word;
+      }
+      
+      return truncated.length > 0 ? truncated + '...' : name.substring(0, maxLength - 3) + '...';
+    }
+    
+    // 언더스코어가 있는 경우 언더스코어 단위로 자르기 시도
+    if (name.includes('_')) {
+      const parts = name.split('_');
+      let truncated = '';
+      
+      for (let part of parts) {
+        const nextLength = truncated + (truncated ? '_' : '') + part;
+        if (nextLength.length > maxLength - 3) {
+          break;
+        }
+        truncated += (truncated ? '_' : '') + part;
+      }
+      
+      return truncated.length > 0 ? truncated + '...' : name.substring(0, maxLength - 3) + '...';
+    }
+    
+    // 그 외의 경우 간단히 자르기
+    return name.substring(0, maxLength - 3) + '...';
   };
 
   // 상태별 색상
@@ -739,6 +841,61 @@ const ProjectDashboard = () => {
     }
   };
   
+  // 프로젝트 삭제 요청 (첫 번째 확인)
+  const handleDeleteProject = (project) => {
+    setProjectToDelete(project);
+    setShowDeleteConfirmModal(true);
+    setDeleteConfirmText('');
+  };
+  
+  // 프로젝트 삭제 확인 및 실행 (두 번째 확인)
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete || deleteConfirmText !== projectToDelete.name) {
+      return;
+    }
+    
+    setIsDeletingProject(true);
+    try {
+      const response = await fetch('/api/delete-project', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: projectToDelete.id,
+          folderName: projectToDelete.folderName
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log(`✅ Project "${projectToDelete.name}" deleted successfully`);
+        
+        // 프로젝트 목록에서 제거
+        setProjects(prevProjects => prevProjects.filter(p => p.id !== projectToDelete.id));
+        
+        // 현재 로드된 프로젝트가 삭제된 프로젝트라면 대시보드 초기화
+        if (currentProject && currentProject.id === projectToDelete.id) {
+          setTasksData(null);
+          setCurrentProject(null);
+        }
+        
+        // 모달 닫기
+        setShowDeleteConfirmModal(false);
+        setProjectToDelete(null);
+        setDeleteConfirmText('');
+        
+        alert(`프로젝트 "${projectToDelete.name}"가 성공적으로 삭제되었습니다.`);
+      } else {
+        console.error('Failed to delete project:', result.error);
+        alert('프로젝트 삭제에 실패했습니다: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      alert('프로젝트 삭제 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
 
   // 토폴로지 정렬 함수 (상태 우선 + 의존성 보조)
   const getTopologicalOrder = (tasks) => {
@@ -880,7 +1037,7 @@ const ProjectDashboard = () => {
       {!tasksData ? (
         /* 초기 화면 */
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-4xl w-full mx-4">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-5xl w-full mx-4">
             <div className="text-center mb-8">
               <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <div className="flex items-center justify-center gap-3 mb-2">
@@ -895,7 +1052,7 @@ const ProjectDashboard = () => {
                   <Github className="w-5 h-5" />
                 </a>
               </div>
-              <p className="text-gray-600 mb-6">Load your project data to start managing tasks</p>
+              <p className="text-gray-600 mb-6">Select a project or load your data to start managing tasks</p>
             </div>
 
             {/* 에러 메시지 표시 */}
@@ -911,89 +1068,104 @@ const ProjectDashboard = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* JSON 직접 입력 */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                  <Edit className="w-5 h-5" />
-                  Paste JSON Data
-                </h3>
-                <textarea
-                  value={jsonInput}
-                  onChange={(e) => setJsonInput(e.target.value)}
-                  placeholder="Paste your JSON data here..."
-                  className="w-full h-64 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono text-sm"
-                />
-                <button
-                  onClick={handleJsonSubmit}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-                >
-                  Load Project Data
-                </button>
-              </div>
-
-              {/* 프로젝트 관리 */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                    <ExternalLink className="w-5 h-5" />
+            {/* 메인 기능들 - 중요성 순서대로 배치 */}
+            <div className="space-y-8">
+              {/* 1. 등록된 프로젝트 접근 (가장 중요) */}
+              <div className="bg-blue-50 rounded-lg p-6 border border-blue-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+                    <ExternalLink className="w-6 h-6 text-blue-600" />
                     Available Projects
                   </h3>
-                  <button
-                    onClick={() => setShowAddProjectModal(true)}
-                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Project
-                  </button>
+                  <span className="text-sm text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
+                    {projects.length} projects
+                  </span>
                 </div>
-
-                {/* 프로젝트 목록 */}
-                <div className="space-y-2 max-h-96 overflow-y-auto">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-80 overflow-y-auto">
                   {projects.length > 0 ? (
                     projects.map((project) => (
-                      <div key={project.id} className={`p-4 rounded-lg hover:bg-gray-100 transition-colors ${project.isExternal ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
-                        <div className="flex items-start justify-between gap-4">
+                      <div 
+                        key={project.id} 
+                        className="bg-white p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow-lg transition-all duration-200 cursor-pointer group relative"
+                        onClick={() => loadProjectFromPath(project)}
+                        title={project.name.length > 25 ? project.name : ''}
+                      >
+                        <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <div className="font-medium text-gray-900">{project.name}</div>
-                            <div className="text-sm text-gray-600 mt-1">{project.description}</div>
-                            <div className="text-xs text-gray-500 mt-1 font-mono">
-                              {project.isExternal ? `🔗 ${project.externalPath}` : `projects/${project.folderName}/`}
+                            <div className="font-medium text-gray-900 text-lg group-hover:text-blue-700 transition-colors">
+                              <span className="hidden lg:inline">{truncateProjectName(project.name, 'lg')}</span>
+                              <span className="hidden md:inline lg:hidden">{truncateProjectName(project.name, 'md')}</span>
+                              <span className="inline md:hidden">{truncateProjectName(project.name, 'sm')}</span>
                             </div>
-                            {project.taskCount !== undefined && (
-                              <div className="text-xs text-blue-600 mt-1">📋 {project.taskCount} tasks</div>
-                            )}
                           </div>
-                          <div className="flex-shrink-0">
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {isLoading ? (
+                              <RefreshCw className="w-4 h-4 animate-spin text-blue-500" />
+                            ) : (
+                              <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                            )}
                             <button
-                              onClick={() => loadProjectFromPath(project)}
-                              disabled={isLoading}
-                              className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-2 min-w-[100px] justify-center font-medium"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteProject(project);
+                              }}
+                              className="bg-red-500 hover:bg-red-600 text-white p-1 rounded text-xs transition-colors z-10 relative opacity-80 hover:opacity-100"
+                              title="Delete project"
                             >
-                              {isLoading ? (
-                                <>
-                                  <RefreshCw className="w-4 h-4 animate-spin" />
-                                  Loading
-                                </>
-                              ) : (
-                                <>
-                                  <ExternalLink className="w-4 h-4" />
-                                  Connect
-                                </>
-                              )}
+                              <Trash className="w-3 h-3" />
                             </button>
                           </div>
                         </div>
+                        
+                        {/* 고급 툴팁 (축약된 이름일 때만 표시) */}
+                        {(project.name.length > 18) && (
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-20 shadow-lg max-w-xs">
+                            <div className="break-words">{project.name}</div>
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="col-span-full text-center py-8 text-gray-500">
                       <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                       <p>No projects available</p>
-                      <p className="text-sm mt-1">Check your projects directory</p>
+                      <p className="text-sm mt-1">Add a project to get started</p>
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* 2. 액션 버튼들 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* 새 프로젝트 등록 */}
+                <button
+                  onClick={() => setShowAddProjectModal(true)}
+                  className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-lg transition-colors flex items-center gap-3 group"
+                >
+                  <div className="bg-green-400 p-2 rounded-full group-hover:bg-green-300 transition-colors flex-shrink-0">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold text-base">Add New Project</h3>
+                    <p className="text-green-100 text-sm mt-0.5">Register a new project from external path</p>
+                  </div>
+                </button>
+
+                {/* JSON 직접 입력 */}
+                <button
+                  onClick={() => setShowJsonInputModal(true)}
+                  className="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-lg transition-colors flex items-center gap-3 group"
+                >
+                  <div className="bg-purple-400 p-2 rounded-full group-hover:bg-purple-300 transition-colors flex-shrink-0">
+                    <Edit className="w-5 h-5" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="font-semibold text-base">Paste JSON Data</h3>
+                    <p className="text-purple-100 text-sm mt-0.5">Load project data directly from JSON</p>
+                  </div>
+                </button>
               </div>
             </div>
           </div>
@@ -1760,6 +1932,174 @@ const ProjectDashboard = () => {
                         Create Project
                       </>
                     )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 프로젝트 삭제 확인 모달 */}
+      {showDeleteConfirmModal && projectToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="bg-red-50 px-6 py-4 border-b rounded-t-lg border-red-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-red-900 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  Delete Project
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirmModal(false);
+                    setProjectToDelete(null);
+                    setDeleteConfirmText('');
+                  }}
+                  className="text-red-400 hover:text-red-600 p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="text-sm text-gray-700">
+                  <p className="mb-3">
+                    <strong>Warning:</strong> You are about to permanently delete the project:
+                  </p>
+                  <div className="bg-gray-50 p-3 rounded border border-gray-200">
+                    <p className="font-medium text-gray-900">{projectToDelete.name}</p>
+                    {projectToDelete.folderName && (
+                      <p className="text-xs text-gray-500 mt-1 font-mono">
+                        projects/{projectToDelete.folderName}/
+                      </p>
+                    )}
+                  </div>
+                  <p className="mt-3 text-red-700">
+                    This action cannot be undone. All project data and configuration will be permanently deleted.
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    To confirm, type the project name: <span className="font-mono bg-gray-100 px-1 rounded">{projectToDelete.name}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                    placeholder="Type project name to confirm..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirmModal(false);
+                      setProjectToDelete(null);
+                      setDeleteConfirmText('');
+                    }}
+                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDeleteProject}
+                    disabled={isDeletingProject || deleteConfirmText !== projectToDelete.name}
+                    className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-red-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isDeletingProject ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-4 h-4" />
+                        Delete Project
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* JSON 입력 모달 */}
+      {showJsonInputModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-purple-50 px-6 py-4 border-b rounded-t-lg border-purple-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-purple-900 flex items-center gap-2">
+                  <Edit className="w-5 h-5 text-purple-500" />
+                  Paste JSON Data
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowJsonInputModal(false);
+                    setJsonInput('');
+                    setLoadError(null);
+                  }}
+                  className="text-purple-400 hover:text-purple-600 p-1"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+              <div className="space-y-4">
+                {loadError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h4 className="text-sm font-medium text-red-800">Error</h4>
+                        <p className="text-sm text-red-700 mt-1">{loadError}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    JSON Data
+                  </label>
+                  <textarea
+                    value={jsonInput}
+                    onChange={(e) => setJsonInput(e.target.value)}
+                    placeholder="Paste your JSON data here..."
+                    className="w-full h-96 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none font-mono text-sm"
+                  />
+                  <p className="text-xs text-gray-500 mt-2">
+                    Paste your tasks.json content here. The data should contain either "master.tasks" or "tasks" array.
+                  </p>
+                </div>
+                
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowJsonInputModal(false);
+                      setJsonInput('');
+                      setLoadError(null);
+                    }}
+                    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleJsonModalSubmit}
+                    disabled={!jsonInput.trim()}
+                    className="flex-1 bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Edit className="w-4 h-4" />
+                    Load Project Data
                   </button>
                 </div>
               </div>
