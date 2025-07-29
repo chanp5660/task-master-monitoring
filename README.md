@@ -57,25 +57,64 @@ React 기반의 고급 프로젝트 작업 관리 대시보드 애플리케이�
 
 ## 🚀 설치 및 실행
 
-### 사전 요구사항
+### 📦 글로벌 설치 (권장)
+
+#### 설치
+```bash
+npm install -g task-master-monitoring
+```
+
+#### 실행
+```bash
+# 완전한 명령어
+task-master-monitoring
+
+# 간단한 명령어 (별칭)
+tmm
+```
+
+#### 옵션
+```bash
+# 기본 포트(3001)로 실행
+tmm
+
+# 사용자 정의 포트로 실행
+tmm --port 4000
+
+# 도움말 보기
+tmm --help
+
+# 버전 정보
+tmm --version
+```
+
+서버 시작 후 브라우저에서 **http://localhost:3000**으로 접속하세요.
+
+---
+
+### 🛠 개발자 모드 설치
+
+#### 사전 요구사항
 - Node.js (권장: v16 이상)
 - npm 또는 yarn
 
-### 설치
+#### 로컬 설치
 ```bash
+git clone <repository-url>
+cd project-dashboard
 npm install
 ```
 
-### 실행 방법
+#### 실행 방법
 
-#### 개발 모드 (추천)
+##### 개발 모드 (추천)
 ```bash
 npm run dev
 ```
 - 프론트엔드(3000번 포트)와 백엔드(3001번 포트)를 동시에 실행
 - 코드 변경 시 자동 리로드
 
-#### 개별 실행
+##### 개별 실행
 ```bash
 # 백엔드만 실행
 npm run server
@@ -84,13 +123,13 @@ npm run server
 npm start
 ```
 
-#### 프로덕션 모드
+##### 프로덕션 모드
 ```bash
 npm run start:prod
 ```
 - React 앱을 빌드하고 백엔드 서버에서 서빙
 
-### 테스트 실행
+##### 테스트 실행
 ```bash
 npm test
 ```

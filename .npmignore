@@ -1,0 +1,42 @@
+# 소스 파일 (빌드된 파일만 포함)
+src/
+
+# 개발/테스트 파일
+*.test.js
+*.spec.js
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 문서 및 메모
+MEMO_API_GUIDE.md
+CLAUDE.md
+.vscode/
+.idea/
+
+# 로그 및 디버그
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Git
+.git/
+.gitignore
+
+# OS 관련
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 기타
+coverage/
+.nyc_output
+*.tgz
+*.tar.gz
