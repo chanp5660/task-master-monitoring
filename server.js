@@ -2,9 +2,75 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// 사용자 데이터 디렉토리 설정
+const USER_DATA_DIR = path.join(os.homedir(), '.task-master-monitoring');
+const USER_PROJECTS_DIR = path.join(USER_DATA_DIR, 'projects');
+
+// 사용자 데이터 디렉토리 생성
+function ensureUserDataDir() {
+  if (!fs.existsSync(USER_DATA_DIR)) {
+    fs.mkdirSync(USER_DATA_DIR, { recursive: true });
+    console.log(`Created user data directory: ${USER_DATA_DIR}`);
+  }
+  if (!fs.existsSync(USER_PROJECTS_DIR)) {
+    fs.mkdirSync(USER_PROJECTS_DIR, { recursive: true });
+    console.log(`Created user projects directory: ${USER_PROJECTS_DIR}`);
+  }
+}
+
+// 기존 데이터 마이그레이션 (한 번만 실행)
+function migrateExistingData() {
+  const oldProjectsPath = path.join(__dirname, 'public', 'projects');
+  const migrationFlagPath = path.join(USER_DATA_DIR, '.migrated');
+  
+  // 이미 마이그레이션했거나, 기존 데이터가 없으면 건너뛰기
+  if (fs.existsSync(migrationFlagPath) || !fs.existsSync(oldProjectsPath)) {
+    return;
+  }
+  
+  try {
+    console.log('Migrating existing project data to user directory...');
+    
+    // 기존 projects 폴더의 모든 내용을 사용자 디렉토리로 복사
+    const copyRecursive = (src, dest) => {
+      if (fs.statSync(src).isDirectory()) {
+        if (!fs.existsSync(dest)) {
+          fs.mkdirSync(dest, { recursive: true });
+        }
+        fs.readdirSync(src).forEach(item => {
+          copyRecursive(path.join(src, item), path.join(dest, item));
+        });
+      } else {
+        fs.copyFileSync(src, dest);
+      }
+    };
+    
+    fs.readdirSync(oldProjectsPath).forEach(item => {
+      const srcPath = path.join(oldProjectsPath, item);
+      const destPath = path.join(USER_PROJECTS_DIR, item);
+      if (fs.statSync(srcPath).isDirectory()) {
+        copyRecursive(srcPath, destPath);
+        console.log(`Migrated project: ${item}`);
+      }
+    });
+    
+    // 마이그레이션 완료 플래그 생성
+    fs.writeFileSync(migrationFlagPath, new Date().toISOString());
+    console.log('Migration completed successfully!');
+    
+  } catch (error) {
+    console.warn('Migration failed, but continuing...', error.message);
+  }
+}
+
+// 초기화
+ensureUserDataDir();
+migrateExistingData();
 
 // 미들웨어
 app.use(cors());
@@ -25,7 +91,7 @@ app.post('/api/save-memo', (req, res) => {
     }
     
     // 프로젝트 폴더 경로
-    const projectPath = path.join(__dirname, 'public', 'projects', project);
+    const projectPath = path.join(USER_PROJECTS_DIR, project);
     const memoFilePath = path.join(projectPath, 'task-memo.json');
     
     // 폴더가 없으면 생성
@@ -39,8 +105,8 @@ app.post('/api/save-memo', (req, res) => {
     console.log(`Memo saved to: ${memoFilePath}`);
     res.json({ 
       success: true, 
-      message: `Memo saved to projects/${project}/task-memo.json`,
-      path: `projects/${project}/task-memo.json`
+      message: `Memo saved to ~/.task-master-monitoring/projects/${project}/task-memo.json`,
+      path: `~/.task-master-monitoring/projects/${project}/task-memo.json`
     });
     
   } catch (error) {
@@ -56,7 +122,7 @@ app.post('/api/save-memo', (req, res) => {
 app.get('/api/load-memo/:project', (req, res) => {
   try {
     const { project } = req.params;
-    const memoFilePath = path.join(__dirname, 'public', 'projects', project, 'task-memo.json');
+    const memoFilePath = path.join(USER_PROJECTS_DIR, project, 'task-memo.json');
     
     if (fs.existsSync(memoFilePath)) {
       const memoData = fs.readFileSync(memoFilePath, 'utf8');
@@ -66,7 +132,7 @@ app.get('/api/load-memo/:project', (req, res) => {
       res.json({ 
         success: true, 
         memos,
-        path: `projects/${project}/task-memo.json`
+        path: `~/.task-master-monitoring/projects/${project}/task-memo.json`
       });
     } else {
       res.json({ 
@@ -95,7 +161,7 @@ app.post('/api/save-dashboard-memo', (req, res) => {
     }
     
     // 프로젝트 폴더 경로
-    const projectPath = path.join(__dirname, 'public', 'projects', project);
+    const projectPath = path.join(USER_PROJECTS_DIR, project);
     const dashboardMemoFilePath = path.join(projectPath, 'dashboard-memo.json');
     
     // 폴더가 없으면 생성
@@ -109,8 +175,8 @@ app.post('/api/save-dashboard-memo', (req, res) => {
     console.log(`Dashboard memo saved to: ${dashboardMemoFilePath}`);
     res.json({ 
       success: true, 
-      message: `Dashboard memo saved to projects/${project}/dashboard-memo.json`,
-      path: `projects/${project}/dashboard-memo.json`
+      message: `Dashboard memo saved to ~/.task-master-monitoring/projects/${project}/dashboard-memo.json`,
+      path: `~/.task-master-monitoring/projects/${project}/dashboard-memo.json`
     });
     
   } catch (error) {
@@ -126,7 +192,7 @@ app.post('/api/save-dashboard-memo', (req, res) => {
 app.get('/api/load-dashboard-memo/:project', (req, res) => {
   try {
     const { project } = req.params;
-    const dashboardMemoFilePath = path.join(__dirname, 'public', 'projects', project, 'dashboard-memo.json');
+    const dashboardMemoFilePath = path.join(USER_PROJECTS_DIR, project, 'dashboard-memo.json');
     
     if (fs.existsSync(dashboardMemoFilePath)) {
       const memoData = fs.readFileSync(dashboardMemoFilePath, 'utf8');
@@ -136,7 +202,7 @@ app.get('/api/load-dashboard-memo/:project', (req, res) => {
       res.json({ 
         success: true, 
         memo,
-        path: `projects/${project}/dashboard-memo.json`
+        path: `~/.task-master-monitoring/projects/${project}/dashboard-memo.json`
       });
     } else {
       res.json({ 
@@ -173,8 +239,8 @@ app.post('/api/create-project-dir', (req, res) => {
     
     res.json({ 
       success: true, 
-      message: `Project directory ready: projects/${project}/`,
-      path: `projects/${project}/`
+      message: `Project directory ready: ~/.task-master-monitoring/projects/${project}/`,
+      path: `~/.task-master-monitoring/projects/${project}/`
     });
     
   } catch (error) {
@@ -189,7 +255,7 @@ app.post('/api/create-project-dir', (req, res) => {
 // 프로젝트 목록 스캔 API
 app.get('/api/scan-projects', (req, res) => {
   try {
-    const projectsPath = path.join(__dirname, 'public', 'projects');
+    const projectsPath = USER_PROJECTS_DIR;
     
     // projects 폴더가 없으면 빈 배열 반환
     if (!fs.existsSync(projectsPath)) {
@@ -233,7 +299,7 @@ app.get('/api/scan-projects', (req, res) => {
               id: index + 1,
               name: projectName,
               folderName: folderName,
-              path: `projects/${folderName}/tasks.json`,
+              path: `~/.task-master-monitoring/projects/${folderName}/tasks.json`,
               description: description,
               taskCount: tasksData.master?.tasks?.length || tasksData.tasks?.length || 0
             });
@@ -245,7 +311,7 @@ app.get('/api/scan-projects', (req, res) => {
               id: index + 1,
               name: folderName,
               folderName: folderName,
-              path: `projects/${folderName}/tasks.json`,
+              path: `~/.task-master-monitoring/projects/${folderName}/tasks.json`,
               description: `${folderName} 프로젝트 (파싱 오류)`,
               taskCount: 0
             });
@@ -323,7 +389,7 @@ app.post('/api/load-external-path', (req, res) => {
 // 외부 경로 링크 파일 스캔 API (txt 파일에서 경로 읽기)
 app.get('/api/scan-external-links', (req, res) => {
   try {
-    const projectsPath = path.join(__dirname, 'public', 'projects');
+    const projectsPath = USER_PROJECTS_DIR;
     
     if (!fs.existsSync(projectsPath)) {
       return res.json({ 
@@ -421,7 +487,7 @@ app.post('/api/create-project', (req, res) => {
     }
     
     // 프로젝트 폴더 경로
-    const projectPath = path.join(__dirname, 'public', 'projects', folderName);
+    const projectPath = path.join(USER_PROJECTS_DIR, folderName);
     const pathFilePath = path.join(projectPath, 'path.txt');
     
     // 폴더가 이미 존재하는지 확인
@@ -479,8 +545,8 @@ app.post('/api/create-project', (req, res) => {
     res.json({ 
       success: true, 
       message: `Project "${name}" created successfully`,
-      projectPath: `projects/${folderName}/`,
-      pathFile: `projects/${folderName}/path.txt`,
+      projectPath: `~/.task-master-monitoring/projects/${folderName}/`,
+      pathFile: `~/.task-master-monitoring/projects/${folderName}/path.txt`,
       externalPath: externalPath
     });
     
