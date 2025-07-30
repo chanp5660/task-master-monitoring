@@ -135,3 +135,32 @@ export const isSubtaskReadyToStart = (subtask, allSubtasks) => {
     return dependentSubtask && (dependentSubtask.status === 'done' || dependentSubtask.status === 'completed');
   });
 };
+
+// 현재 작업에 의존하는 다음 작업들을 찾기
+export const getNextTasks = (currentTask, allTasks) => {
+  if (!currentTask || !allTasks) return [];
+  
+  return allTasks.filter(task => {
+    // 자기 자신은 제외
+    if (task.id === currentTask.id) return false;
+    
+    // 현재 작업을 의존성으로 가지는 작업들 찾기
+    return task.dependencies && task.dependencies.includes(currentTask.id);
+  });
+};
+
+// 다음 작업들 중에서 현재 작업이 완료되면 바로 시작 가능한 작업들 찾기
+export const getReadyNextTasks = (currentTask, allTasks) => {
+  const nextTasks = getNextTasks(currentTask, allTasks);
+  
+  return nextTasks.filter(task => {
+    // 현재 작업이 완료되었다고 가정하고 준비 상태 확인
+    const otherDependencies = task.dependencies?.filter(depId => depId !== currentTask.id) || [];
+    
+    // 다른 의존성들이 모두 완료되었는지 확인
+    return otherDependencies.every(depId => {
+      const dependentTask = allTasks.find(t => t.id === depId);
+      return dependentTask && (dependentTask.status === 'done' || dependentTask.status === 'completed');
+    });
+  });
+};

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Save, X, ChevronDown, MessageSquare, ArrowLeft } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart, getUncompletedDependencies, getUncompletedSubtaskDependencies } from '../utils/taskUtils';
+import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart, getUncompletedDependencies, getUncompletedSubtaskDependencies, getNextTasks, getReadyNextTasks } from '../utils/taskUtils';
 
 const TaskDetailModal = ({ 
   selectedTask, 
@@ -114,6 +114,56 @@ const TaskDetailModal = ({
     });
   };
 
+  // Next Tasks 렌더링 헬퍼 함수
+  const renderNextTasks = (task) => {
+    const nextTasks = getNextTasks(task, tasksData.tasks);
+    if (nextTasks.length === 0) return [];
+    
+    const readyNextTasks = getReadyNextTasks(task, tasksData.tasks);
+    const isCurrentTaskCompleted = task.status === 'done' || task.status === 'completed';
+    
+    return nextTasks.map((nextTask) => {
+      const willBeReady = readyNextTasks.includes(nextTask);
+      const isAlreadyCompleted = nextTask.status === 'done' || nextTask.status === 'completed';
+      
+      return (
+        <div 
+          key={nextTask.id} 
+          className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${
+            isAlreadyCompleted 
+              ? 'border-green-300 bg-green-50 hover:bg-green-100' 
+              : willBeReady && isCurrentTaskCompleted
+                ? 'border-blue-300 bg-blue-50 hover:bg-blue-100'
+                : 'border-gray-200 hover:bg-gray-50'
+          }`}
+          onClick={() => handleDependencyTaskSelect(nextTask)}
+        >
+          <div className="flex items-center gap-3">
+            <span className={`w-3 h-3 rounded-full ${getStatusColor(nextTask.status)}`}></span>
+            <div>
+              <div className={`text-sm font-medium ${
+                isAlreadyCompleted 
+                  ? 'text-green-700' 
+                  : willBeReady && isCurrentTaskCompleted
+                    ? 'text-blue-700 font-semibold'
+                    : 'text-gray-900'
+              }`}>
+                #{nextTask.id} - {nextTask.title.replace(/^#\d+\s*/, '')}
+              </div>
+              <div className="text-xs text-gray-500">
+                {nextTask.status}
+                {willBeReady && isCurrentTaskCompleted && !isAlreadyCompleted && (
+                  <span className="ml-2 text-blue-600 font-medium">• Ready to start</span>
+                )}
+              </div>
+            </div>
+          </div>
+          {getStatusIcon(nextTask.status)}
+        </div>
+      );
+    });
+  };
+
   if (!selectedTask) return null;
 
   return (
@@ -176,6 +226,16 @@ const TaskDetailModal = ({
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Dependencies</h3>
               <div className="grid gap-2">
                 {renderTaskDependencies(selectedTask)}
+              </div>
+            </div>
+          )}
+
+          {/* 다음 작업들 */}
+          {getNextTasks(selectedTask, tasksData.tasks).length > 0 && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">Next Tasks</h3>
+              <div className="grid gap-2">
+                {renderNextTasks(selectedTask)}
               </div>
             </div>
           )}
