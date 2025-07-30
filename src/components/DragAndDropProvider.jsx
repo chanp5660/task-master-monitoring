@@ -12,13 +12,15 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable';
 
 const DragAndDropProvider = ({ 
   children, 
   items, 
   onDragEnd, 
-  disabled = false 
+  disabled = false,
+  strategy = 'vertical' // 'vertical' | 'rect'
 }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -57,7 +59,7 @@ const DragAndDropProvider = ({
     >
       <SortableContext
         items={items.map(item => item.id.toString())}
-        strategy={verticalListSortingStrategy}
+        strategy={strategy === 'rect' ? rectSortingStrategy : verticalListSortingStrategy}
       >
         {children}
       </SortableContext>

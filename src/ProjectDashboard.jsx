@@ -268,6 +268,7 @@ const ProjectDashboard = () => {
             items={taskFilterHook.filteredTasks}
             onDragEnd={handleDragEnd}
             disabled={viewMode === 'diagram'}
+            strategy="rect"
           >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {taskFilterHook.filteredTasks.map((task) => (
@@ -275,7 +276,7 @@ const ProjectDashboard = () => {
                   key={task.id}
                   id={task.id}
                   showDragHandle={true}
-                  className={`rounded-lg shadow hover:shadow-lg transition-shadow ${
+                  className={`rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer ${
                     hasUncompletedDependencies(task, tasksData.tasks) 
                       ? 'bg-red-50 border border-red-200' 
                       : isReadyToStart(task, tasksData.tasks)
@@ -283,7 +284,7 @@ const ProjectDashboard = () => {
                         : 'bg-white'
                   }`}
                 >
-                  <div>
+                  <div onClick={() => setSelectedTask(task)}>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -324,13 +325,6 @@ const ProjectDashboard = () => {
                       </div>
                     </div>
                   )}
-                  
-                  <button
-                    onClick={() => setSelectedTask(task)}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  >
-                    View Details
-                  </button>
                 </div>
                   </div>
                 </SortableTaskItem>
