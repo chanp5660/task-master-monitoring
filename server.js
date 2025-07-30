@@ -638,6 +638,228 @@ app.delete('/api/delete-project', (req, res) => {
   }
 });
 
+// 뽀모도로 세션 저장 API
+app.post('/api/save-pomodoro', (req, res) => {
+  try {
+    const { project, session } = req.body;
+    
+    if (!project || !session) {
+      return res.status(400).json({ error: 'Project and session are required' });
+    }
+    
+    // 프로젝트 폴더 경로
+    const projectPath = path.join(USER_PROJECTS_DIR, project);
+    const pomodoroFilePath = path.join(projectPath, 'pomodoro-history.json');
+    
+    // 폴더가 없으면 생성
+    if (!fs.existsSync(projectPath)) {
+      fs.mkdirSync(projectPath, { recursive: true });
+    }
+    
+    // 기존 기록 읽기 또는 초기 데이터 생성
+    let pomodoroData = {
+      sessions: [],
+      dailyStats: {}
+    };
+    
+    if (fs.existsSync(pomodoroFilePath)) {
+      try {
+        const existingData = fs.readFileSync(pomodoroFilePath, 'utf8');
+        pomodoroData = JSON.parse(existingData);
+      } catch (parseError) {
+        console.warn('Failed to parse existing pomodoro data, creating new file');
+      }
+    }
+    
+    // 새 세션 추가
+    pomodoroData.sessions.push(session);
+    
+    // 일일 통계 업데이트
+    const sessionDate = session.startTime.split('T')[0]; // YYYY-MM-DD 형식
+    if (!pomodoroData.dailyStats[sessionDate]) {
+      pomodoroData.dailyStats[sessionDate] = {
+        workSessions: 0,
+        breakSessions: 0,
+        totalFocusTime: 0,
+        completionRate: 0
+      };
+    }
+    
+    const dailyStat = pomodoroData.dailyStats[sessionDate];
+    if (session.type === 'work') {
+      dailyStat.workSessions++;
+      dailyStat.totalFocusTime += session.duration;
+    } else {
+      dailyStat.breakSessions++;
+    }
+    
+    // 완료율 계산 (완료된 세션 / 전체 세션)
+    const todaySessions = pomodoroData.sessions.filter(s => s.startTime.split('T')[0] === sessionDate);
+    const completedSessions = todaySessions.filter(s => s.completed);
+    dailyStat.completionRate = todaySessions.length > 0 ? 
+      Math.round((completedSessions.length / todaySessions.length) * 100) : 100;
+    
+    // 파일 저장
+    fs.writeFileSync(pomodoroFilePath, JSON.stringify(pomodoroData, null, 2), 'utf8');
+    
+    console.log(`Pomodoro session saved to: ${pomodoroFilePath}`);
+    res.json({ 
+      success: true, 
+      message: `Pomodoro session saved to ~/.task-master-monitoring/projects/${project}/pomodoro-history.json`,
+      path: `~/.task-master-monitoring/projects/${project}/pomodoro-history.json`,
+      sessionId: session.id
+    });
+    
+  } catch (error) {
+    console.error('Error saving pomodoro session:', error);
+    res.status(500).json({ 
+      error: 'Failed to save pomodoro session', 
+      details: error.message 
+    });
+  }
+});
+
+// 뽀모도로 기록 조회 API
+app.get('/api/load-pomodoro-history/:project', (req, res) => {
+  try {
+    const { project } = req.params;
+    const { date, limit } = req.query; // 선택적 쿼리 파라미터
+    
+    const pomodoroFilePath = path.join(USER_PROJECTS_DIR, project, 'pomodoro-history.json');
+    
+    if (fs.existsSync(pomodoroFilePath)) {
+      const pomodoroData = JSON.parse(fs.readFileSync(pomodoroFilePath, 'utf8'));
+      
+      let filteredSessions = pomodoroData.sessions;
+      
+      // 날짜 필터링
+      if (date) {
+        filteredSessions = filteredSessions.filter(session => 
+          session.startTime.split('T')[0] === date
+        );
+      }
+      
+      // 개수 제한
+      if (limit) {
+        const limitNum = parseInt(limit);
+        filteredSessions = filteredSessions.slice(-limitNum); // 최근 N개
+      }
+      
+      // 통계 계산
+      const today = new Date().toISOString().split('T')[0];
+      const todayStats = pomodoroData.dailyStats[today] || {
+        workSessions: 0,
+        breakSessions: 0,
+        totalFocusTime: 0,
+        completionRate: 0
+      };
+      
+      console.log(`Pomodoro history loaded from: ${pomodoroFilePath}`);
+      res.json({ 
+        success: true, 
+        sessions: filteredSessions,
+        dailyStats: pomodoroData.dailyStats,
+        todayStats: todayStats,
+        totalSessions: pomodoroData.sessions.length,
+        path: `~/.task-master-monitoring/projects/${project}/pomodoro-history.json`
+      });
+    } else {
+      res.json({ 
+        success: false, 
+        message: 'No pomodoro history file found',
+        sessions: [],
+        dailyStats: {},
+        todayStats: {
+          workSessions: 0,
+          breakSessions: 0,
+          totalFocusTime: 0,
+          completionRate: 0
+        },
+        totalSessions: 0
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error loading pomodoro history:', error);
+    res.status(500).json({ 
+      error: 'Failed to load pomodoro history', 
+      details: error.message 
+    });
+  }
+});
+
+// 뽀모도로 세션 삭제 API
+app.delete('/api/delete-pomodoro-session', (req, res) => {
+  try {
+    const { project, sessionId } = req.body;
+    
+    if (!project || !sessionId) {
+      return res.status(400).json({ error: 'Project and sessionId are required' });
+    }
+    
+    const pomodoroFilePath = path.join(USER_PROJECTS_DIR, project, 'pomodoro-history.json');
+    
+    if (!fs.existsSync(pomodoroFilePath)) {
+      return res.status(404).json({ error: 'Pomodoro history file not found' });
+    }
+    
+    // 기존 데이터 읽기
+    const pomodoroData = JSON.parse(fs.readFileSync(pomodoroFilePath, 'utf8'));
+    
+    // 해당 세션 찾기 및 삭제
+    const sessionToDelete = pomodoroData.sessions.find(s => s.id === sessionId);
+    if (!sessionToDelete) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    // 세션 삭제
+    pomodoroData.sessions = pomodoroData.sessions.filter(s => s.id !== sessionId);
+    
+    // 일일 통계 재계산
+    const sessionDate = sessionToDelete.startTime.split('T')[0];
+    const dailySessions = pomodoroData.sessions.filter(s => s.startTime.split('T')[0] === sessionDate);
+    
+    if (dailySessions.length === 0) {
+      // 해당 날짜의 세션이 모두 삭제된 경우 통계 삭제
+      delete pomodoroData.dailyStats[sessionDate];
+    } else {
+      // 통계 재계산
+      const workSessions = dailySessions.filter(s => s.type === 'work').length;
+      const breakSessions = dailySessions.filter(s => s.type === 'break').length;
+      const totalFocusTime = dailySessions
+        .filter(s => s.type === 'work')
+        .reduce((total, s) => total + s.duration, 0);
+      const completedSessions = dailySessions.filter(s => s.completed);
+      const completionRate = dailySessions.length > 0 ? 
+        Math.round((completedSessions.length / dailySessions.length) * 100) : 0;
+      
+      pomodoroData.dailyStats[sessionDate] = {
+        workSessions,
+        breakSessions,
+        totalFocusTime,
+        completionRate
+      };
+    }
+    
+    // 파일 저장
+    fs.writeFileSync(pomodoroFilePath, JSON.stringify(pomodoroData, null, 2), 'utf8');
+    
+    console.log(`Pomodoro session ${sessionId} deleted from: ${pomodoroFilePath}`);
+    res.json({ 
+      success: true, 
+      message: `Session deleted successfully`,
+      deletedSessionId: sessionId
+    });
+    
+  } catch (error) {
+    console.error('Error deleting pomodoro session:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete pomodoro session', 
+      details: error.message 
+    });
+  }
+});
+
 // React 앱 서빙 (모든 다른 라우트) - 프로덕션 모드에서만
 app.get('*', (_, res) => {
   const buildIndexPath = path.join(__dirname, 'build', 'index.html');
@@ -661,4 +883,7 @@ app.listen(PORT, () => {
   console.log(`  GET  /api/scan-projects - Scan projects folder for available projects`);
   console.log(`  POST /api/load-external-path - Load data from external path`);
   console.log(`  GET  /api/scan-external-links - Scan for external link projects (path.txt files)`);
+  console.log(`  POST /api/save-pomodoro - Save pomodoro session to file`);
+  console.log(`  GET  /api/load-pomodoro-history/:project - Load pomodoro history from file`);
+  console.log(`  DELETE /api/delete-pomodoro-session - Delete a specific pomodoro session`);
 });

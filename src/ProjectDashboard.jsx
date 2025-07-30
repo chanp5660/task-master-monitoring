@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, AlertCircle, BarChart3, Edit, FileText, Users, ExternalLink, ChevronUp, ChevronDown, Plus, FolderPlus, Github, Network, Trash, MessageSquare, Save, Home } from 'lucide-react';
+import { Search, AlertCircle, BarChart3, Edit, FileText, Users, ExternalLink, ChevronUp, ChevronDown, Plus, FolderPlus, Github, Network, Trash, MessageSquare, Save, Home, Clock } from 'lucide-react';
 import DiagramView from './components/DiagramView';
 import TaskStats from './components/TaskStats';
 import TaskDetailSidebar from './components/TaskDetailSidebar';
@@ -8,6 +8,8 @@ import FilterBar from './components/FilterBar';
 import ProjectList from './components/ProjectList';
 import DragAndDropProvider from './components/DragAndDropProvider';
 import SortableTaskItem from './components/SortableTaskItem';
+import PomodoroTimer from './components/PomodoroTimer';
+import PomodoroStatsModal from './components/PomodoroStatsModal';
 
 // 커스텀 훅들
 import useProjects from './hooks/useProjects';
@@ -43,6 +45,70 @@ const ProjectDashboard = () => {
   const [showJsonInputModal, setShowJsonInputModal] = useState(false);
   const [isDashboardMemoCollapsed, setIsDashboardMemoCollapsed] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(800); // 기본 사이드바 너비를 최대로 설정
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [showPomodoroStats, setShowPomodoroStats] = useState(false);
+  const [showTimeSettings, setShowTimeSettings] = useState(false);
+  const [selectedLocale, setSelectedLocale] = useState('ko-KR');
+  const [customLocales, setCustomLocales] = useState([]);
+
+  // 현재 시간 업데이트
+  React.useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, []);
+
+  // 로케일 옵션
+  const localeOptions = [
+    { code: 'ko-KR', name: '한국', timezone: 'Asia/Seoul' },
+    { code: 'en-US', name: 'United States', timezone: 'America/New_York' },
+    ...customLocales
+  ];
+
+  const getCurrentLocaleInfo = () => {
+    return localeOptions.find(locale => locale.code === selectedLocale) || localeOptions[0];
+  };
+
+  const addCustomLocale = () => {
+    const code = prompt('로케일 코드를 입력하세요 (예: ja-JP):');
+    const name = prompt('국가명을 입력하세요:');
+    const timezone = prompt('타임존을 입력하세요 (예: Asia/Tokyo):');
+    
+    if (code && name && timezone) {
+      setCustomLocales(prev => [...prev, { code, name, timezone }]);
+    }
+  };
+
+  // 뽀모도로 세션 완료 처리
+  const handlePomodoroSessionComplete = async (sessionData) => {
+    console.log('Session completed:', sessionData);
+    
+    if (projectHook.currentProject) {
+      try {
+        const response = await fetch('/api/save-pomodoro', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            project: projectHook.currentProject.folderName || projectHook.currentProject.name,
+            session: sessionData
+          })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+          console.log('✅ Pomodoro session saved successfully!');
+        } else {
+          console.error('❌ Failed to save pomodoro session:', result.error);
+        }
+      } catch (error) {
+        console.error('❌ Error saving pomodoro session:', error);
+      }
+    }
+  };
 
   // 메모 내용에 따른 동적 높이 계산
   const calculateMemoHeight = (memoContent) => {
@@ -191,15 +257,101 @@ const ProjectDashboard = () => {
       {/* 헤더 */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 transition-all duration-300" style={{ marginRight: selectedTask ? `${sidebarWidth}px` : '0' }}>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="grid grid-cols-3 items-center">
+            {/* 왼쪽: 브랜딩 */}
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-bold text-gray-800">TASK MASTER MONITORING</h1>
               {projectHook.currentProject && (
-                <div className="text-sm text-gray-600 mb-1">
-                  Current Project: <span className="text-blue-800 font-medium">{projectHook.currentProject.name}</span>
+                <div className="text-sm text-gray-500">
+                  / <span className="text-blue-600 font-medium">{projectHook.currentProject.name}</span>
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-4">
+
+            {/* 가운데: 뽀모도로 타이머 */}
+            <div className="flex justify-center">
+              <div className="bg-gray-50 rounded-lg px-4 py-2 border">
+                <PomodoroTimer 
+                  currentTask={selectedTask}
+                  onSessionComplete={handlePomodoroSessionComplete}
+                  onShowStats={() => setShowPomodoroStats(true)}
+                  onTaskStatusChange={handleStatusChange}
+                />
+              </div>
+            </div>
+
+            {/* 오른쪽: 현재시간 + 도구들 */}
+            <div className="flex items-center justify-end gap-4">
+              <div className="relative">
+                <button
+                  onClick={() => setShowTimeSettings(!showTimeSettings)}
+                  className="flex flex-col items-end text-sm hover:bg-gray-50 p-2 rounded transition-colors"
+                  title="시간대 설정"
+                >
+                  <div className="font-medium text-gray-800">
+                    {currentTime.toLocaleTimeString(selectedLocale, { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      second: '2-digit',
+                      timeZone: getCurrentLocaleInfo().timezone
+                    })}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {currentTime.toLocaleDateString(selectedLocale, {
+                      year: 'numeric',
+                      month: 'short', 
+                      day: 'numeric',
+                      weekday: 'short',
+                      timeZone: getCurrentLocaleInfo().timezone
+                    })}
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    {getCurrentLocaleInfo().name}
+                  </div>
+                </button>
+                
+                {/* 시간 설정 드롭다운 */}
+                {showTimeSettings && (
+                  <div className="absolute top-full right-0 mt-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 p-3 min-w-56">
+                    <h3 className="text-sm font-semibold text-gray-800 mb-3">시간대 설정</h3>
+                    
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {localeOptions.map((locale) => (
+                        <button
+                          key={locale.code}
+                          onClick={() => {
+                            setSelectedLocale(locale.code);
+                            setShowTimeSettings(false);
+                          }}
+                          className={`w-full text-left px-3 py-2 rounded text-sm hover:bg-gray-50 ${
+                            selectedLocale === locale.code ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                          }`}
+                        >
+                          <div className="font-medium">{locale.name}</div>
+                          <div className="text-xs text-gray-500">{locale.code} - {locale.timezone}</div>
+                        </button>
+                      ))}
+                    </div>
+                    
+                    <div className="flex justify-between items-center mt-3 pt-3 border-t border-gray-200">
+                      <button
+                        onClick={addCustomLocale}
+                        className="text-xs text-blue-600 hover:text-blue-800"
+                      >
+                        + 커스텀 추가
+                      </button>
+                      
+                      <button
+                        onClick={() => setShowTimeSettings(false)}
+                        className="px-3 py-1 bg-gray-500 text-white text-xs rounded hover:bg-gray-600"
+                      >
+                        닫기
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <a
                 href="https://github.com/chanp5660/task-master-monitoring"
                 target="_blank"
@@ -209,37 +361,6 @@ const ProjectDashboard = () => {
               >
                 <Github className="w-5 h-5" />
               </a>
-              
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setViewMode('cards')}
-                  className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
-                    viewMode === 'cards' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
-                  }`}
-                >
-                  <BarChart3 className="w-4 h-4" />
-                  Cards
-                </button>
-                <button
-                  onClick={() => setViewMode('list')}
-                  className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
-                    viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  List
-                </button>
-                <button
-                  onClick={() => setViewMode('diagram')}
-                  className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
-                    viewMode === 'diagram' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
-                  }`}
-                >
-                  <Network className="w-4 h-4" />
-                  Diagram
-                </button>
-              </div>
-              
               
               <button
                 onClick={() => setTasksData(null)}
@@ -266,6 +387,8 @@ const ProjectDashboard = () => {
           onSortByDependency={() => initializeDependencyOrder(tasksData.tasks)}
           filteredTasksCount={taskFilterHook.filteredTasks.length}
           totalTasksCount={taskFilterHook.stats.total}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
         />
 
         {/* 작업 목록 */}
@@ -643,6 +766,13 @@ const ProjectDashboard = () => {
           />
         </ResizablePane>
       )}
+      
+      {/* 뽀모도로 통계 모달 */}
+      <PomodoroStatsModal
+        isOpen={showPomodoroStats}
+        onClose={() => setShowPomodoroStats(false)}
+        currentProject={projectHook.currentProject}
+      />
       </div>
     </div>
   );

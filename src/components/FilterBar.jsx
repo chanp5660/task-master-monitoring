@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, ChevronDown, BarChart3, Users, Network } from 'lucide-react';
 
 const FilterBar = ({ 
   searchTerm, 
@@ -8,7 +8,9 @@ const FilterBar = ({
   setFilterStatus, 
   onSortByDependency,
   filteredTasksCount,
-  totalTasksCount 
+  totalTasksCount,
+  viewMode,
+  setViewMode
 }) => {
   return (
     <div className="bg-white rounded-lg shadow mb-6 p-4">
@@ -24,6 +26,37 @@ const FilterBar = ({
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+        </div>
+        
+        {/* 뷰모드 선택 */}
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('cards')}
+            className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
+              viewMode === 'cards' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            Cards
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
+              viewMode === 'list' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            List
+          </button>
+          <button
+            onClick={() => setViewMode('diagram')}
+            className={`px-3 py-1 rounded text-sm flex items-center gap-1 ${
+              viewMode === 'diagram' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+            }`}
+          >
+            <Network className="w-4 h-4" />
+            Diagram
+          </button>
         </div>
         
         {/* 상태 필터 - 컴팩트한 다중 선택 */}
