@@ -295,13 +295,22 @@ app.get('/api/scan-projects', (req, res) => {
               description = tasksData.description;
             }
             
+            // 완료율 계산
+            const tasks = tasksData.master?.tasks || tasksData.tasks || [];
+            const completedTasks = tasks.filter(task => 
+              task.status === 'done' || task.status === 'completed'
+            ).length;
+            const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+            
             projects.push({
               id: index + 1,
               name: projectName,
               folderName: folderName,
               path: `~/.task-master-monitoring/projects/${folderName}/tasks.json`,
               description: description,
-              taskCount: tasksData.master?.tasks?.length || tasksData.tasks?.length || 0
+              taskCount: tasks.length,
+              completedTasks: completedTasks,
+              completionRate: completionRate
             });
             
           } catch (parseError) {
@@ -313,7 +322,9 @@ app.get('/api/scan-projects', (req, res) => {
               folderName: folderName,
               path: `~/.task-master-monitoring/projects/${folderName}/tasks.json`,
               description: `${folderName} 프로젝트 (파싱 오류)`,
-              taskCount: 0
+              taskCount: 0,
+              completedTasks: 0,
+              completionRate: 0
             });
           }
         }
@@ -431,24 +442,35 @@ app.get('/api/scan-external-links', (req, res) => {
                   description = tasksData.description;
                 }
                 
+                // 완료율 계산
+                const tasks = tasksData.master?.tasks || tasksData.tasks || [];
+                const completedTasks = tasks.filter(task => 
+                  task.status === 'done' || task.status === 'completed'
+                ).length;
+                const completionRate = tasks.length > 0 ? Math.round((completedTasks / tasks.length) * 100) : 0;
+                
                 externalProjects.push({
                   id: `ext_${index + 1}`,
-                  name: `${projectName} 🔗`,
+                  name: projectName,
                   folderName: folderName,
                   externalPath: externalPath,
                   description: `${description} (링크: ${externalPath})`,
-                  taskCount: tasksData.master?.tasks?.length || tasksData.tasks?.length || 0,
+                  taskCount: tasks.length,
+                  completedTasks: completedTasks,
+                  completionRate: completionRate,
                   isExternal: true
                 });
               } catch (parseError) {
                 // JSON 파싱 실패 시에도 기본 정보로 추가
                 externalProjects.push({
                   id: `ext_${index + 1}`,
-                  name: `${folderName} 🔗`,
+                  name: folderName,
                   folderName: folderName,
                   externalPath: externalPath,
                   description: `${folderName} 프로젝트 (외부 링크, 파싱 오류)`,
                   taskCount: 0,
+                  completedTasks: 0,
+                  completionRate: 0,
                   isExternal: true
                 });
               }
@@ -559,6 +581,63 @@ app.post('/api/create-project', (req, res) => {
   }
 });
 
+// 프로젝트 삭제 API
+app.delete('/api/delete-project', (req, res) => {
+  try {
+    const { projectId, folderName } = req.body;
+    
+    if (!folderName) {
+      return res.status(400).json({ 
+        error: 'FolderName is required' 
+      });
+    }
+    
+    // 프로젝트 폴더 경로
+    const projectPath = path.join(USER_PROJECTS_DIR, folderName);
+    
+    // 폴더가 존재하는지 확인
+    if (!fs.existsSync(projectPath)) {
+      return res.status(404).json({ 
+        error: 'Project folder not found',
+        folderName: folderName,
+        path: projectPath
+      });
+    }
+    
+    // 재귀적으로 폴더와 모든 내용 삭제
+    const deleteRecursive = (dirPath) => {
+      if (fs.existsSync(dirPath)) {
+        fs.readdirSync(dirPath).forEach((file) => {
+          const currentPath = path.join(dirPath, file);
+          if (fs.lstatSync(currentPath).isDirectory()) {
+            deleteRecursive(currentPath);
+          } else {
+            fs.unlinkSync(currentPath);
+          }
+        });
+        fs.rmdirSync(dirPath);
+      }
+    };
+    
+    deleteRecursive(projectPath);
+    
+    console.log(`Project "${folderName}" deleted successfully from: ${projectPath}`);
+    
+    res.json({ 
+      success: true, 
+      message: `Project "${folderName}" deleted successfully`,
+      deletedPath: `~/.task-master-monitoring/projects/${folderName}/`
+    });
+    
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete project', 
+      details: error.message 
+    });
+  }
+});
+
 // React 앱 서빙 (모든 다른 라우트) - 프로덕션 모드에서만
 app.get('*', (_, res) => {
   const buildIndexPath = path.join(__dirname, 'build', 'index.html');
@@ -578,6 +657,7 @@ app.listen(PORT, () => {
   console.log(`  GET  /api/load-dashboard-memo/:project - Load dashboard memo from file`);
   console.log(`  POST /api/create-project-dir - Create project directory`);
   console.log(`  POST /api/create-project - Create new project with external path link`);
+  console.log(`  DELETE /api/delete-project - Delete project and its folder`);
   console.log(`  GET  /api/scan-projects - Scan projects folder for available projects`);
   console.log(`  POST /api/load-external-path - Load data from external path`);
   console.log(`  GET  /api/scan-external-links - Scan for external link projects (path.txt files)`);

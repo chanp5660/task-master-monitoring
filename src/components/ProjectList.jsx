@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Edit, FolderPlus, RefreshCw, Plus, ExternalLink, Trash, X } from 'lucide-react';
+import { AlertCircle, Edit, FolderPlus, RefreshCw, Plus, Trash, X } from 'lucide-react';
 import { truncateProjectName } from '../utils/projectUtils';
 
 const ProjectList = ({ 
@@ -50,13 +50,6 @@ const ProjectList = ({
                 <Plus className="w-4 h-4" />
                 Add JSON
               </button>
-              <button
-                onClick={projectHook.loadAvailableProjects}
-                className="bg-gray-500 hover:bg-gray-600 text-white px-3 py-2 rounded-lg text-sm inline-flex items-center gap-2 transition-colors"
-              >
-                <RefreshCw className={`w-4 h-4 ${projectHook.isLoading ? 'animate-spin' : ''}`} />
-                Refresh
-              </button>
             </div>
           </div>
           
@@ -65,20 +58,26 @@ const ProjectList = ({
               {projectHook.projects.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors cursor-pointer relative group min-h-[80px]"
+                  className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors cursor-pointer relative group"
                   onClick={() => onProjectLoad(project)}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900 break-words leading-tight" title={project.name}>
+                      <h4 className="font-medium text-gray-900 truncate" title={project.name}>
                         {project.name}
                       </h4>
-                      {project.isExternal && (
-                        <div className="flex items-center gap-1 mt-2 text-xs text-blue-600">
-                          <ExternalLink className="w-3 h-3" />
-                          External Link
-                        </div>
-                      )}
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className="text-sm text-gray-600">
+                          {project.taskCount || 0} tasks
+                        </span>
+                        <span className={`text-sm font-medium ${
+                          (project.completionRate || 0) >= 80 ? 'text-green-600' :
+                          (project.completionRate || 0) >= 50 ? 'text-yellow-600' :
+                          'text-red-500'
+                        }`}>
+                          {project.completionRate || 0}% ({project.completedTasks || 0}/{project.taskCount || 0})
+                        </span>
+                      </div>
                     </div>
                     <button
                       onClick={(e) => {
@@ -94,8 +93,30 @@ const ProjectList = ({
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <p className="text-gray-500">No projects found. Add a new project to get started.</p>
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <div className="mb-4">
+                <FolderPlus className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">프로젝트를 시작해보세요</h3>
+                <p className="text-gray-500 mb-4">프로젝트를 관리하려면 다음 중 하나를 선택하세요:</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center max-w-md mx-auto">
+                <button
+                  onClick={() => projectHook.setShowAddProjectModal(true)}
+                  className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm inline-flex items-center gap-2 transition-colors w-full sm:w-auto"
+                >
+                  <FolderPlus className="w-4 h-4" />
+                  새 프로젝트 추가
+                </button>
+                <span className="text-gray-400 hidden sm:block">또는</span>
+                <button
+                  onClick={() => setShowJsonInputModal(true)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm inline-flex items-center gap-2 transition-colors w-full sm:w-auto"
+                >
+                  <Plus className="w-4 h-4" />
+                  JSON 데이터 직접 입력
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-4">프로젝트 폴더를 연결하거나 JSON 형식의 작업 데이터를 직접 붙여넣을 수 있습니다</p>
             </div>
           )}
         </div>

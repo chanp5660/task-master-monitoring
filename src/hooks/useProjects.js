@@ -249,7 +249,11 @@ const useProjects = () => {
   
   // 프로젝트 삭제 확인 및 실행 (두 번째 확인)
   const confirmDeleteProject = async () => {
-    if (!projectToDelete || deleteConfirmText !== projectToDelete.name) {
+    if (!projectToDelete) {
+      return;
+    }
+    
+    if (deleteConfirmText !== projectToDelete.name) {
       return;
     }
     
