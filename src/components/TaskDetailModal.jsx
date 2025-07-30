@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BarChart3, Save, X, ChevronDown, MessageSquare } from 'lucide-react';
-import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart } from '../utils/taskUtils';
+import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart, getUncompletedDependencies, getUncompletedSubtaskDependencies } from '../utils/taskUtils';
 
 const TaskDetailModal = ({ 
   selectedTask, 
@@ -17,6 +17,62 @@ const TaskDetailModal = ({
       ...prev,
       [subtaskId]: !prev[subtaskId]
     }));
+  };
+
+  // Task Dependencies 렌더링 헬퍼 함수 (차단되는 의존성을 빨간색 볼드로 표시)
+  const renderTaskDependencies = (task) => {
+    if (!task.dependencies || task.dependencies.length === 0) return [];
+    
+    const uncompletedDeps = getUncompletedDependencies(task, tasksData.tasks);
+    
+    return task.dependencies.map((depId) => {
+      const depTask = tasksData.tasks.find(t => t.id === depId);
+      const isBlocking = uncompletedDeps.includes(depId);
+      
+      return depTask ? (
+        <div 
+          key={depId} 
+          className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${
+            isBlocking ? 'border-red-300 bg-red-50 hover:bg-red-100' : 'border-gray-200 hover:bg-gray-50'
+          }`}
+          onClick={() => onTaskSelect && onTaskSelect(depTask)}
+        >
+          <div className="flex items-center gap-3">
+            <span className={`w-3 h-3 rounded-full ${getStatusColor(depTask.status)}`}></span>
+            <div>
+              <div className={`text-sm font-medium ${isBlocking ? 'text-red-700 font-bold' : 'text-gray-900'}`}>
+                #{depTask.id} - {depTask.title.replace(/^#\d+\s*/, '')}
+              </div>
+              <div className="text-xs text-gray-500">{depTask.status}</div>
+            </div>
+          </div>
+          {getStatusIcon(depTask.status)}
+        </div>
+      ) : (
+        <div key={depId} className="flex items-center justify-between p-3 border border-red-300 bg-red-50 rounded-lg">
+          <div className="text-sm font-bold text-red-700">#{depId} - Task not found</div>
+        </div>
+      );
+    });
+  };
+
+  // Subtask Dependencies 렌더링 헬퍼 함수
+  const renderSubtaskDependencies = (subtask) => {
+    if (!subtask.dependencies || subtask.dependencies.length === 0) return [];
+    
+    const uncompletedDeps = getUncompletedSubtaskDependencies(subtask, selectedTask.subtasks);
+    
+    return subtask.dependencies.map((depId) => {
+      const isBlocking = uncompletedDeps.includes(depId);
+      
+      return (
+        <span key={depId} className={`px-2 py-1 bg-gray-100 text-xs rounded ${
+          isBlocking ? 'text-red-600 font-bold bg-red-100' : 'text-gray-600'
+        }`}>
+          #{typeof depId === 'string' && depId.includes('.') ? depId.split('.')[1] : depId}
+        </span>
+      );
+    });
   };
 
   if (!selectedTask) return null;
@@ -65,23 +121,7 @@ const TaskDetailModal = ({
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Dependencies</h3>
               <div className="grid gap-2">
-                {selectedTask.dependencies.map((depId) => {
-                  const depTask = tasksData.tasks.find(t => t.id === depId);
-                  return depTask ? (
-                    <div 
-                      key={depId} 
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors"
-                      onClick={() => onTaskSelect && onTaskSelect(depTask)}
-                    >
-                      <span className="text-sm font-medium text-gray-600">#{depTask.id}</span>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(depTask.status)}`}>
-                        {getStatusIcon(depTask.status)}
-                        <span className="ml-1">{depTask.status}</span>
-                      </span>
-                      <span className="font-medium">{depTask.title}</span>
-                    </div>
-                  ) : null;
-                })}
+                {renderTaskDependencies(selectedTask)}
               </div>
             </div>
           )}
@@ -165,11 +205,7 @@ const TaskDetailModal = ({
                             <div>
                               <h4 className="font-medium text-gray-900 mb-2">Dependencies</h4>
                               <div className="flex flex-wrap gap-1">
-                                {subtask.dependencies.map((depId) => (
-                                  <span key={depId} className="px-2 py-1 bg-gray-100 text-xs text-gray-600 rounded">
-                                    #{typeof depId === 'string' && depId.includes('.') ? depId.split('.')[1] : depId}
-                                  </span>
-                                ))}
+                                {renderSubtaskDependencies(subtask)}
                               </div>
                             </div>
                           )}

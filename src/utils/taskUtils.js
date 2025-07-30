@@ -58,6 +58,16 @@ export const hasUncompletedDependencies = (task, allTasks) => {
   });
 };
 
+// 완료되지 않은 의존성 ID 목록을 반환
+export const getUncompletedDependencies = (task, allTasks) => {
+  if (!task.dependencies || task.dependencies.length === 0) return [];
+  
+  return task.dependencies.filter(depId => {
+    const dependentTask = allTasks.find(t => t.id === depId);
+    return dependentTask && dependentTask.status !== 'done' && dependentTask.status !== 'completed';
+  });
+};
+
 // 바로 진행 가능한 작업인지 확인 (모든 의존성이 완료되고 본인은 미완료)
 export const isReadyToStart = (task, allTasks) => {
   // 이미 완료된 작업은 진행 가능 표시하지 않음
@@ -78,6 +88,22 @@ export const hasUncompletedSubtaskDependencies = (subtask, allSubtasks) => {
   if (!subtask.dependencies || subtask.dependencies.length === 0) return false;
   
   return subtask.dependencies.some(depId => {
+    // 의존성 ID 파싱 (예: "1.2" 형태에서 실제 subtask ID 추출)
+    let actualDepId = depId;
+    if (typeof depId === 'string' && depId.includes('.')) {
+      actualDepId = parseInt(depId.split('.')[1]);
+    }
+    
+    const dependentSubtask = allSubtasks.find(st => st.id === actualDepId);
+    return dependentSubtask && dependentSubtask.status !== 'done' && dependentSubtask.status !== 'completed';
+  });
+};
+
+// subtask의 완료되지 않은 의존성 ID 목록을 반환
+export const getUncompletedSubtaskDependencies = (subtask, allSubtasks) => {
+  if (!subtask.dependencies || subtask.dependencies.length === 0) return [];
+  
+  return subtask.dependencies.filter(depId => {
     // 의존성 ID 파싱 (예: "1.2" 형태에서 실제 subtask ID 추출)
     let actualDepId = depId;
     if (typeof depId === 'string' && depId.includes('.')) {

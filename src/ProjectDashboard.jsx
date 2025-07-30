@@ -15,11 +15,27 @@ import useTaskFiltering from './hooks/useTaskFiltering';
 import useTaskOrder from './hooks/useTaskOrder';
 
 // 유틸리티 함수들
-import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart } from './utils/taskUtils';
+import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart, getUncompletedDependencies, getUncompletedSubtaskDependencies } from './utils/taskUtils';
 import { truncateProjectName, parseTasksData } from './utils/projectUtils';
 
 const ProjectDashboard = () => {
   const [tasksData, setTasksData] = useState(null);
+
+  // Dependencies 렌더링 헬퍼 함수 (차단되는 의존성을 빨간색 볼드로 표시)
+  const renderDependencies = (task) => {
+    if (!task.dependencies || task.dependencies.length === 0) return 'None';
+    
+    const uncompletedDeps = getUncompletedDependencies(task, tasksData.tasks);
+    
+    return task.dependencies.map((depId, index) => (
+      <span key={depId}>
+        {index > 0 && ', '}
+        <span className={uncompletedDeps.includes(depId) ? 'text-red-600 font-bold' : ''}>
+          {depId}
+        </span>
+      </span>
+    ));
+  };
   const [selectedTask, setSelectedTask] = useState(null);
   const [viewMode, setViewMode] = useState('list');
   const [jsonInput, setJsonInput] = useState('');
@@ -267,7 +283,7 @@ const ProjectDashboard = () => {
                   
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
                     {task.dependencies?.length > 0 && (
-                      <span>Dependencies: {task.dependencies?.join(', ') || 'None'}</span>
+                      <span>Dependencies: {renderDependencies(task)}</span>
                     )}
                   </div>
                   
@@ -350,7 +366,7 @@ const ProjectDashboard = () => {
                           <span className="text-sm font-medium text-gray-900">#{task.id}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onClick={() => setSelectedTask(task)}>
-                          {task.dependencies?.length > 0 ? task.dependencies.join(', ') : '0'}
+                          {task.dependencies?.length > 0 ? renderDependencies(task) : '0'}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap" onClick={() => setSelectedTask(task)}>
                           <div className="flex items-center gap-1">
