@@ -3,7 +3,7 @@ import { BarChart3, Save, X, ChevronDown, MessageSquare, ArrowLeft } from 'lucid
 import ReactMarkdown from 'react-markdown';
 import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart, getUncompletedDependencies, getUncompletedSubtaskDependencies, getNextTasks, getReadyNextTasks } from '../utils/taskUtils';
 
-const TaskDetailModal = ({ 
+const TaskDetailSidebar = ({ 
   selectedTask, 
   onClose, 
   tasksData, 
@@ -13,20 +13,19 @@ const TaskDetailModal = ({
 }) => {
   const [expandedSubtasks, setExpandedSubtasks] = useState({});
   const [taskHistory, setTaskHistory] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
-  // Initialize task history when modal opens/closes
+  // Initialize task history when task changes
   useEffect(() => {
-    if (selectedTask && !isModalOpen) {
-      // Modal is opening - initialize history with first task
+    if (selectedTask && taskHistory.length === 0) {
+      // First task - initialize history
       setTaskHistory([selectedTask]);
-      setIsModalOpen(true);
-    } else if (!selectedTask && isModalOpen) {
-      // Modal is closing - clear history
-      setTaskHistory([]);
-      setIsModalOpen(false);
+      setIsVisible(true);
+    } else if (selectedTask && taskHistory.length > 0 && taskHistory[taskHistory.length - 1].id !== selectedTask.id) {
+      // Different task selected - add to history
+      setTaskHistory(prev => [...prev, selectedTask]);
     }
-  }, [selectedTask, isModalOpen]);
+  }, [selectedTask]);
 
   // Navigate back to previous task
   const handleBackNavigation = () => {
@@ -37,9 +36,19 @@ const TaskDetailModal = ({
       setTaskHistory(newHistory);
       onTaskSelect && onTaskSelect(previousTask);
     } else {
-      // If no history, just close the modal
-      onClose();
+      // If no history, just close the sidebar
+      handleClose();
     }
+  };
+
+  // Handle close with animation
+  const handleClose = () => {
+    setIsVisible(false);
+    setTaskHistory([]);
+    // Small delay to allow animation to complete
+    setTimeout(() => {
+      onClose();
+    }, 300);
   };
 
   // Handle dependency click navigation
@@ -167,10 +176,22 @@ const TaskDetailModal = ({
   if (!selectedTask) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+    <>
+      {/* 모바일 오버레이 */}
+      {isVisible && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+          onClick={handleClose}
+        />
+      )}
+      
+      {/* 사이드바 콘텐츠 - ResizablePane이 크기와 위치를 관리 */}
+      <div className={`h-full transform transition-transform duration-300 ease-in-out ${
+        isVisible ? 'translate-x-0' : 'translate-x-full'
+      } w-full`}>
+      <div className="h-full overflow-y-auto">
         <div className="p-6">
-          {/* 모달 헤더 - 고정 */}
+          {/* 헤더 - 고정 */}
           <div className="sticky top-0 bg-white z-10 border-b border-gray-200 pb-4 mb-6">
             <div className="flex items-start justify-between mb-4">
               <div className="flex items-start gap-3 flex-1">
@@ -180,30 +201,29 @@ const TaskDetailModal = ({
                     className="text-gray-400 hover:text-gray-600 p-2 mt-1 flex-shrink-0"
                     title="Go back to previous task"
                   >
-                    <ArrowLeft className="w-5 h-5" />
+                    <ArrowLeft className="w-4 h-4" />
                   </button>
                 )}
-                <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-3">{selectedTask.title}</h2>
-                    <div className="flex items-center gap-4">
-                      <div className="text-lg font-medium text-gray-600">Task #{selectedTask.id}</div>
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedTask.status)}`}>
+                <div className="flex-1 min-w-0">
+                    <h2 className="text-xl font-bold text-gray-900 mb-2 break-words">{selectedTask.title}</h2>
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="text-sm font-medium text-gray-600">#{selectedTask.id}</div>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(selectedTask.status)}`}>
                         {getStatusIcon(selectedTask.status)}
                         <span className="ml-1 capitalize">{selectedTask.status}</span>
                       </span>
-                      
-                      <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTask.priority)}`}></div>
-                        <span className="text-sm text-gray-600 capitalize">{selectedTask.priority} Priority</span>
-                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTask.priority)}`}></div>
+                      <span className="text-sm text-gray-600 capitalize">{selectedTask.priority} Priority</span>
                     </div>
                   </div>
                 </div>
               <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 p-2 ml-4 flex-shrink-0"
+                onClick={handleClose}
+                className="text-gray-400 hover:text-gray-600 p-2 ml-2 flex-shrink-0"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -224,7 +244,7 @@ const TaskDetailModal = ({
           {selectedTask.dependencies && selectedTask.dependencies.length > 0 && (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Dependencies</h3>
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 {renderTaskDependencies(selectedTask)}
               </div>
             </div>
@@ -234,7 +254,7 @@ const TaskDetailModal = ({
           {getNextTasks(selectedTask, tasksData.tasks).length > 0 && (
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Next Tasks</h3>
-              <div className="grid gap-2">
+              <div className="space-y-2">
                 {renderNextTasks(selectedTask)}
               </div>
             </div>
@@ -262,7 +282,7 @@ const TaskDetailModal = ({
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-gray-900">Subtasks</h3>
-                <span className="text-lg font-medium text-gray-600">
+                <span className="text-sm font-medium text-gray-600">
                   {selectedTask.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length}/{selectedTask.subtasks.length}
                 </span>
               </div>
@@ -287,10 +307,10 @@ const TaskDetailModal = ({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <div className="font-medium text-gray-900 truncate">{subtask.title}</div>
-                          <span className="text-sm font-medium text-gray-500">#{subtask.id}</span>
+                          <span className="text-xs font-medium text-gray-500">#{subtask.id}</span>
                         </div>
                         {!expandedSubtasks[subtask.id] && (
-                          <div className="text-sm text-gray-600 truncate line-clamp-1">{subtask.description}</div>
+                          <div className="text-sm text-gray-600 truncate">{subtask.description}</div>
                         )}
                       </div>
                       
@@ -378,8 +398,9 @@ const TaskDetailModal = ({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 };
 
-export default TaskDetailModal;
+export default TaskDetailSidebar;

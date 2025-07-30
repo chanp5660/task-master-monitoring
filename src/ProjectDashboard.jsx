@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Search, AlertCircle, BarChart3, Edit, FileText, Users, ExternalLink, ChevronUp, ChevronDown, Plus, FolderPlus, Github, Network, Trash, MessageSquare, Save, Home } from 'lucide-react';
 import DiagramView from './components/DiagramView';
 import TaskStats from './components/TaskStats';
-import TaskDetailModal from './components/TaskDetailModal';
+import TaskDetailSidebar from './components/TaskDetailSidebar';
+import ResizablePane from './components/ResizablePane';
 import FilterBar from './components/FilterBar';
 import ProjectList from './components/ProjectList';
 import DragAndDropProvider from './components/DragAndDropProvider';
@@ -41,6 +42,7 @@ const ProjectDashboard = () => {
   const [jsonInput, setJsonInput] = useState('');
   const [showJsonInputModal, setShowJsonInputModal] = useState(false);
   const [isDashboardMemoCollapsed, setIsDashboardMemoCollapsed] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(800); // 기본 사이드바 너비를 최대로 설정
 
   // 메모 내용에 따른 동적 높이 계산
   const calculateMemoHeight = (memoContent) => {
@@ -173,7 +175,7 @@ const ProjectDashboard = () => {
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 transition-all duration-300`} style={{ marginRight: selectedTask ? `${sidebarWidth}px` : '0' }}>
           <div className="flex items-center justify-between">
             <div>
               {projectHook.currentProject && (
@@ -236,7 +238,9 @@ const ProjectDashboard = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="flex">
+      <div className="flex-1 transition-all duration-300" style={{ marginRight: selectedTask ? `${sidebarWidth}px` : '0' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <TaskStats stats={taskFilterHook.stats} currentProject={projectHook.currentProject} />
 
         <FilterBar
@@ -441,16 +445,29 @@ const ProjectDashboard = () => {
             />
           </div>
         </div>
+
+        </div>
       </div>
 
-      <TaskDetailModal
-        selectedTask={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        tasksData={tasksData}
-        getSubtaskTopologicalOrder={getSubtaskTopologicalOrder}
-        memoHook={memoHook}
-        onTaskSelect={setSelectedTask}
-      />
+      {/* 리사이저블 사이드바 상세보기 */}
+      {selectedTask && (
+        <ResizablePane
+          defaultWidth={sidebarWidth}
+          onWidthChange={setSidebarWidth}
+          minWidth={280}
+          maxWidth={Math.min(800, window.innerWidth * 0.6)}
+        >
+          <TaskDetailSidebar
+            selectedTask={selectedTask}
+            onClose={() => setSelectedTask(null)}
+            tasksData={tasksData}
+            getSubtaskTopologicalOrder={getSubtaskTopologicalOrder}
+            memoHook={memoHook}
+            onTaskSelect={setSelectedTask}
+          />
+        </ResizablePane>
+      )}
+      </div>
     </div>
   );
 };
