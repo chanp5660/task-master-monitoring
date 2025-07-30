@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, AlertCircle, BarChart3, Edit, FileText, Users, RefreshCw, ExternalLink, ChevronUp, ChevronDown, Plus, FolderPlus, Github, Network, Trash, MessageSquare, Save, Home } from 'lucide-react';
+import { Search, AlertCircle, BarChart3, Edit, FileText, Users, ExternalLink, ChevronUp, ChevronDown, Plus, FolderPlus, Github, Network, Trash, MessageSquare, Save, Home } from 'lucide-react';
 import DiagramView from './components/DiagramView';
 import TaskStats from './components/TaskStats';
 import TaskDetailModal from './components/TaskDetailModal';
@@ -62,13 +62,40 @@ const ProjectDashboard = () => {
   const taskFilterHook = useTaskFiltering(tasksData, manualOrder);
   const memoHook = useMemos(projectHook.currentProject, selectedTask, tasksData);
 
-  const refreshDashboard = () => {
-    if (projectHook.currentProject && (projectHook.currentProject.path || projectHook.currentProject.externalPath)) {
-      handleProjectLoad(projectHook.currentProject);
-    } else {
-      window.location.reload();
-    }
-  };
+  // 새로고침 핸들러 - F5 및 브라우저 새로고침 버튼 모두 처리
+  React.useEffect(() => {
+    const handleRefresh = () => {
+      if (selectedTask) {
+        setSelectedTask(null);
+      }
+      if (projectHook.currentProject && (projectHook.currentProject.path || projectHook.currentProject.externalPath)) {
+        handleProjectLoad(projectHook.currentProject);
+      } else {
+        window.location.reload();
+      }
+    };
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'F5' || (event.key === 'r' && event.ctrlKey)) {
+        event.preventDefault();
+        handleRefresh();
+      }
+    };
+
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      handleRefresh();
+      return '';
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [selectedTask, projectHook.currentProject]);
 
   const handleProjectLoad = async (project) => {
     try {
@@ -198,14 +225,6 @@ const ProjectDashboard = () => {
                 </button>
               </div>
               
-              <button
-                onClick={refreshDashboard}
-                disabled={projectHook.isLoading}
-                className="bg-blue-500 hover:bg-blue-600 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm inline-flex items-center gap-2 transition-colors"
-              >
-                <RefreshCw className={`w-4 h-4 ${projectHook.isLoading ? 'animate-spin' : ''}`} />
-                {projectHook.currentProject ? 'Refresh' : 'Load New Data'}
-              </button>
               
               <button
                 onClick={() => setTasksData(null)}
