@@ -83,9 +83,7 @@ const ProjectDashboard = () => {
     };
 
     const handleBeforeUnload = (event) => {
-      event.preventDefault();
       handleRefresh();
-      return '';
     };
 
     window.addEventListener('keydown', handleKeyDown);
