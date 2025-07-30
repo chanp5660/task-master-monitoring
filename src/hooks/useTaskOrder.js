@@ -136,6 +136,12 @@ const useTaskOrder = () => {
     setManualOrder(newOrder);
   };
 
+  // Drag & Drop으로 task 순서 변경
+  const handleDragEnd = (reorderedTasks) => {
+    const newOrder = reorderedTasks.map(task => task.id);
+    setManualOrder(newOrder);
+  };
+
   return {
     // 상태
     manualOrder,
@@ -147,7 +153,8 @@ const useTaskOrder = () => {
     getTopologicalOrder,
     getSubtaskTopologicalOrder,
     initializeDependencyOrder,
-    moveTask
+    moveTask,
+    handleDragEnd
   };
 };
 

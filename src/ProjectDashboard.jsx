@@ -5,6 +5,8 @@ import TaskStats from './components/TaskStats';
 import TaskDetailModal from './components/TaskDetailModal';
 import FilterBar from './components/FilterBar';
 import ProjectList from './components/ProjectList';
+import DragAndDropProvider from './components/DragAndDropProvider';
+import SortableTaskItem from './components/SortableTaskItem';
 
 // 커스텀 훅들
 import useProjects from './hooks/useProjects';
@@ -40,7 +42,7 @@ const ProjectDashboard = () => {
 
   // 커스텀 훅 사용
   const projectHook = useProjects();
-  const { manualOrder, setManualOrder, getTopologicalOrder, getSubtaskTopologicalOrder, initializeDependencyOrder, moveTask } = useTaskOrder();
+  const { manualOrder, setManualOrder, getTopologicalOrder, getSubtaskTopologicalOrder, initializeDependencyOrder, moveTask, handleDragEnd } = useTaskOrder();
   const taskFilterHook = useTaskFiltering(tasksData, manualOrder);
   const memoHook = useMemos(projectHook.currentProject, selectedTask, tasksData);
 
@@ -225,15 +227,26 @@ const ProjectDashboard = () => {
             />
           </div>
         ) : viewMode === 'cards' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {taskFilterHook.filteredTasks.map((task) => (
-              <div key={task.id} className={`rounded-lg shadow hover:shadow-lg transition-shadow ${
-                hasUncompletedDependencies(task, tasksData.tasks) 
-                  ? 'bg-red-50 border border-red-200' 
-                  : isReadyToStart(task, tasksData.tasks)
-                    ? 'bg-blue-50 border border-blue-200'
-                    : 'bg-white'
-              }`}>
+          <DragAndDropProvider
+            items={taskFilterHook.filteredTasks}
+            onDragEnd={handleDragEnd}
+            disabled={viewMode === 'diagram'}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {taskFilterHook.filteredTasks.map((task) => (
+                <SortableTaskItem
+                  key={task.id}
+                  id={task.id}
+                  showDragHandle={true}
+                  className={`rounded-lg shadow hover:shadow-lg transition-shadow ${
+                    hasUncompletedDependencies(task, tasksData.tasks) 
+                      ? 'bg-red-50 border border-red-200' 
+                      : isReadyToStart(task, tasksData.tasks)
+                        ? 'bg-blue-50 border border-blue-200'
+                        : 'bg-white'
+                  }`}
+                >
+                  <div>
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-2">
@@ -275,124 +288,83 @@ const ProjectDashboard = () => {
                     </div>
                   )}
                   
-                  <div className="flex items-center justify-between">
-                    <button
-                      onClick={() => setSelectedTask(task)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      View Details
-                    </button>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moveTask(task.id, 'up');
-                        }}
-                        className="text-gray-400 hover:text-gray-600 p-1"
-                        title="Move up"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          moveTask(task.id, 'down');
-                        }}
-                        className="text-gray-400 hover:text-gray-600 p-1"
-                        title="Move down"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                  <button
+                    onClick={() => setSelectedTask(task)}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    View Details
+                  </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dependencies</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {taskFilterHook.filteredTasks.map((task) => (
-                    <tr 
-                      key={task.id} 
-                      className={`cursor-pointer ${
-                        hasUncompletedDependencies(task, tasksData.tasks) 
-                          ? 'bg-red-50 hover:bg-red-100 border-l-4 border-red-400' 
-                          : isReadyToStart(task, tasksData.tasks)
-                            ? 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-400'
-                            : 'hover:bg-gray-50'
-                      }`}
-                      onClick={() => setSelectedTask(task)}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-                          {getStatusIcon(task.status)}
-                          <span className="ml-1 capitalize">{task.status}</span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{task.title.replace(/^#\d+\s*/, '')}</div>
-                          <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-medium text-gray-900">#{task.id}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {task.dependencies?.length > 0 ? task.dependencies.join(', ') : '0'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
-                          <span className="text-sm text-gray-900 capitalize">{task.priority}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2 items-center">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              moveTask(task.id, 'up');
-                            }}
-                            disabled={taskFilterHook.filteredTasks.indexOf(task) === 0}
-                            className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            title="Move up"
-                          >
-                            <ChevronUp className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              moveTask(task.id, 'down');
-                            }}
-                            disabled={taskFilterHook.filteredTasks.indexOf(task) === taskFilterHook.filteredTasks.length - 1}
-                            className="px-2 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                            title="Move down"
-                          >
-                            <ChevronDown className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </div>
+                </SortableTaskItem>
+              ))}
             </div>
-          </div>
+          </DragAndDropProvider>
+        ) : (
+          <DragAndDropProvider
+            items={taskFilterHook.filteredTasks}
+            onDragEnd={handleDragEnd}
+            disabled={viewMode === 'diagram'}
+          >
+            <div className="bg-white rounded-lg shadow">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8"></th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Dependencies</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {taskFilterHook.filteredTasks.map((task) => (
+                      <SortableTaskItem
+                        key={task.id}
+                        id={task.id}
+                        as="tr"
+                        showDragHandle={true}
+                        className={`cursor-pointer group ${
+                          hasUncompletedDependencies(task, tasksData.tasks) 
+                            ? 'bg-red-50 hover:bg-red-100 border-l-4 border-red-400' 
+                            : isReadyToStart(task, tasksData.tasks)
+                              ? 'bg-blue-50 hover:bg-blue-100 border-l-4 border-blue-400'
+                              : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={() => setSelectedTask(task)}>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                            {getStatusIcon(task.status)}
+                            <span className="ml-1 capitalize">{task.status}</span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-4" onClick={() => setSelectedTask(task)}>
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{task.title.replace(/^#\d+\s*/, '')}</div>
+                            <p className="text-sm text-gray-500 mt-1 line-clamp-2">{task.description}</p>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={() => setSelectedTask(task)}>
+                          <span className="text-sm font-medium text-gray-900">#{task.id}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500" onClick={() => setSelectedTask(task)}>
+                          {task.dependencies?.length > 0 ? task.dependencies.join(', ') : '0'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap" onClick={() => setSelectedTask(task)}>
+                          <div className="flex items-center gap-1">
+                            <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                            <span className="text-sm text-gray-900 capitalize">{task.priority}</span>
+                          </div>
+                        </td>
+                      </SortableTaskItem>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </DragAndDropProvider>
         )}
 
         {/* 대시보드 메모 */}

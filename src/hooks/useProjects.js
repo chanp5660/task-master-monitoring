@@ -65,13 +65,6 @@ const useProjects = () => {
             folderName: 'cpue_prediction_dataset',
             path: 'projects/cpue_prediction_dataset/tasks.json',
             description: 'CPUE 예측 프로젝트(데이터셋 구축)'
-          },
-          {
-            id: 2,
-            name: '테스트',
-            folderName: 'test',
-            path: 'projects/test/tasks.json',
-            description: '테스트 프로젝트'
           }
         ];
         setProjects(fallbackProjects);
@@ -86,13 +79,6 @@ const useProjects = () => {
           folderName: 'cpue_prediction_dataset',
           path: 'projects/cpue_prediction_dataset/tasks.json',
           description: 'CPUE 예측 프로젝트(데이터셋 구축)'
-        },
-        {
-          id: 2,
-          name: '테스트',
-          folderName: 'test',
-          path: 'projects/test/tasks.json',
-          description: '테스트 프로젝트'
         }
       ];
       setProjects(fallbackProjects);
