@@ -405,23 +405,45 @@ npm run dev
 
 ## ❓ FAQ
 
-### Q: 외부 JSON 파일을 어떻게 연결하나요?
-A: "Create New Project" 섹션에서 프로젝트를 생성할 때 JSON 파일의 절대 경로를 입력하면 자동으로 `path.txt` 파일이 생성되어 연결됩니다.
+### 🚀 설치 
 
-### Q: 작업의 상태를 일괄 변경할 수 있나요?
-A: 현재는 개별 작업의 상태만 변경 가능합니다. 일괄 변경 기능은 향후 업데이트에서 제공될 예정입니다.
+#### Q: 포트 충돌로 실행이 안 돼요.
+A: `tmm --port 4000`처럼 다른 포트를 지정해서 실행하세요. 백엔드는 자동으로 지정된 포트+1을 사용합니다.
 
-### Q: 다이어그램 뷰에서 노드 위치를 수동으로 조정할 수 있나요?
-A: 현재는 Dagre 알고리즘에 의한 자동 레이아웃만 지원합니다. 수동 조정 기능은 향후 버전에서 고려하고 있습니다.
+### 📊 프로젝트 데이터 관리
 
-### Q: 백업은 어떻게 하나요?
-A: 사용자 데이터는 `~/.task-master-monitoring/projects/` 디렉토리에 저장되므로, 이 폴더를 백업하면 됩니다.
+#### Q: 어떤 형태의 데이터를 사용할 수 있나요?
+A: 다음 세 가지 방법으로 데이터를 사용할 수 있습니다:
+- **JSON 직접 입력**: 대시보드에서 바로 붙여넣기
+- **tasks.json 파일 연결**: 시스템의 다른 위치에 있는 JSON 파일 링크
 
-### Q: 여러 사용자가 동시에 사용할 수 있나요?
-A: 현재는 로컬 파일 시스템 기반이므로 단일 사용자 모드입니다. 다중 사용자 지원은 향후 계획에 있습니다.
+#### Q: tasks.json 파일을 어떻게 연결하나요?
+A: "Add Project" 섹션에서 프로젝트를 생성할 때 JSON 파일의 절대 경로를 입력하면 자동으로 `path.txt` 파일이 생성되어 연결됩니다.
 
-### Q: 작업 데이터를 Excel이나 CSV로 내보낼 수 있나요?
-A: 현재는 JSON 형식만 지원합니다. 다른 형식으로의 내보내기 기능은 향후 업데이트에서 추가될 예정입니다.
+#### Q: 프로젝트 데이터가 실시간으로 동기화되나요?
+A: 메모는 실시간으로 저장되지만, 작업 데이터 자체는 수동으로 다시 로드해야 합니다. 외부 파일을 수정한 후에는 브라우저에서 새로고침하세요. 추후 자동 동기화 기능 추가 예정
+
+### 🔧 기능 사용법
+
+#### Q: 다이어그램 뷰가 복잡해 보여요. 간단하게 볼 수 있나요?
+A: 다이어그램 뷰에서 "Simple Node Mode" 토글을 활성화하면 노드가 간소화되어 더 깔끔하게 볼 수 있습니다.
+
+#### Q: 작업 순서를 바꿀 수 있나요?
+A: task-master-ai 를 사용해서 직접 변경해야 합니다. 보는 순서는 변경이 가능합니다만, 재접속하거나 "Status + Dependency Order" 버튼 클릭 시 원래 순서로 돌아갑니다.
+
+#### Q: 메모 기능은 어디에 저장되나요?
+A: 메모는 프로젝트 폴더(~/.task-master-monitoring/projects/) 내에 저장됩니다. 프로젝트 폴더 내에 `task-memo.json` 파일이 생성되며, 이 파일에 메모가 저장됩니다.
+
+#### Q: 다이어그램 뷰에서 노드 위치를 수동으로 조정 후 저장 가능한가요?
+A: 현재는 Dagre 알고리즘에 의한 자동 레이아웃만 지원합니다. 노드를 드래그해서 임시로 위치를 변경할 수 있지만, 새로고침하면 원래 위치로 돌아갑니다. 추후 자동 저장 기능 추가 예정
+
+### 💾 데이터 관리 및 백업
+
+#### Q: 백업은 어떻게 하나요?
+A: 사용자 데이터는 `~/.task-master-monitoring/projects/` 디렉토리에 저장되므로, 이 폴더 전체를 백업하면 됩니다. 각 프로젝트별로 `tasks.json`, `task-memo.json`, `dashboard-memo.json` 파일이 포함됩니다.
+
+#### Q: 다른 컴퓨터로 데이터를 옮기려면?
+A: 백업한 `~/.task-master-monitoring/projects/` 폴더를 새 컴퓨터의 같은 위치에 복사하면 됩니다.
 
 ## 🔄 최근 업데이트 내역 (v1.5.0)
 
@@ -463,20 +485,6 @@ A: 현재는 JSON 형식만 지원합니다. 다른 형식으로의 내보내기
 - **필터링 & 검색**: 상태, 우선순위별 필터 및 텍스트 검색
 - **CLI 도구**: 글로벌 설치 및 명령행 인터페이스 지원
 
-## 🎯 향후 계획
-
-- [ ] **다중 사용자 지원**: 협업 기능 추가
-- [ ] **데이터 내보내기**: Excel/CSV 형식 지원
-- [ ] **테마 시스템**: 다크/라이트 모드
-- [ ] **알림 시스템**: 작업 마감일 알림
-- [ ] **모바일 최적화**: 반응형 UI 개선
-- [ ] **클라우드 동기화**: 원격 데이터 저장
-
-## 📊 프로젝트 상태
-
-![GitHub issues](https://img.shields.io/github/issues/chanp5660/task-master-monitoring)
-![GitHub last commit](https://img.shields.io/github/last-commit/chanp5660/task-master-monitoring)
-![GitHub repo size](https://img.shields.io/github/repo-size/chanp5660/task-master-monitoring)
 
 ## 📄 라이선스
 
@@ -494,8 +502,8 @@ A: 현재는 JSON 형식만 지원합니다. 다른 형식으로의 내보내기
 5. 🔃 Open a Pull Request
 
 ### 버그 리포트 및 기능 제안
-- 🐛 [버그 리포트](https://github.com/your-username/project-dashboard/issues/new?template=bug_report.md)
-- 💡 [기능 제안](https://github.com/your-username/project-dashboard/issues/new?template=feature_request.md)
+- 🐛 [버그 리포트](https://github.com/chanp5660/task-master-monitoring/issues/new?template=bug_report.md)
+- 💡 [기능 제안](https://github.com/chanp5660/task-master-monitoring/issues/new?template=feature_request.md)
 
 ---
 
