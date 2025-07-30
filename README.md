@@ -88,7 +88,7 @@ tmm --help
 tmm --version
 ```
 
-서버 시작 후 브라우저에서 **http://localhost:3000**으로 접속하세요.
+서버 시작 후 브라우저에서 **http://localhost:3000** 으로 접속하세요.
 
 ---
 
@@ -261,26 +261,23 @@ project-dashboard/
 - **정렬**: 다양한 기준으로 작업 정렬 (의존성 기반 포함)
 - **상태 변경**: 카드나 리스트에서 직접 상태 변경
 - **상세 보기**: "Details" 버튼 또는 다이어그램 노드 클릭으로 작업 상세 정보 확인
-
-
-![](https://i.imgur.com/Eic8VIe.png)
-![](https://i.imgur.com/DG1JXJT.png)
-![](https://i.imgur.com/ZmzyZI9.png)
-![](https://i.imgur.com/FXyzbAP.png)
-![](https://i.imgur.com/r4FFeOA.png)
-
+- **의존성 탐색**: 작업 상세보기에서 Dependencies와 Subtasks ID 클릭으로 연관 작업 바로 이동
 
 ### 5. 메모 활용
 - **태스크 메모**: 각 작업 카드에서 메모 아이콘 클릭하여 작성
 - **대시보드 메모**: 우측 상단 메모 섹션에서 전체 프로젝트 메모 작성
+- **메모 접기/펼치기**: 대시보드 메모 영역 크기 조절 및 토글 기능
 - **자동 저장**: 작성한 메모는 백엔드 API를 통해 자동으로 파일에 저장
 
-![](https://i.imgur.com/QrJi1FD.png)
-![](https://i.imgur.com/rBsLswU.png)
+## 🔄 최근 업데이트 내역 (v1.4.0)
 
-## 🔄 최근 업데이트 내역 (v1.3.0)
+### 🎯 최신 기능 개선 (v1.4.0)
+- **Dependencies 연결 기능**: Task 상세보기 모달에서 Dependencies와 Subtasks ID 클릭 시 해당 task 상세보기 모달 열기
+- **대시보드 메모 개선**: 대시보드 메모 접기/펼치기 기능 및 동적 높이 조절 추가
+- **프로젝트 관리 안정성**: 프로젝트 삭제 모달 취소 버튼 오류 수정
+- **시각적 개선**: 작업 상세보기 모달에서 Dependencies와 Subtasks ID 표시 추가
 
-### 🎯 최신 아키텍처 개선 (v1.3.0)
+### 🏗️ 아키텍처 개선 (v1.3.0)
 - **컴포넌트 모듈화**: ProjectDashboard 코드 구조 개선 및 컴포넌트 분리
 - **커스텀 훅 도입**: useProjects, useMemos, useTaskFiltering, useTaskOrder 등 로직 분리
 - **유틸리티 함수 체계화**: taskUtils.js, projectUtils.js로 공통 함수 정리
