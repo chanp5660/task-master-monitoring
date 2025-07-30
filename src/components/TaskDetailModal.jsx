@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { BarChart3, Save, X, ChevronDown, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { BarChart3, Save, X, ChevronDown, MessageSquare, ArrowLeft } from 'lucide-react';
 import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart, getUncompletedDependencies, getUncompletedSubtaskDependencies } from '../utils/taskUtils';
 
 const TaskDetailModal = ({ 
@@ -11,6 +11,44 @@ const TaskDetailModal = ({
   onTaskSelect 
 }) => {
   const [expandedSubtasks, setExpandedSubtasks] = useState({});
+  const [taskHistory, setTaskHistory] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Initialize task history when modal opens/closes
+  useEffect(() => {
+    if (selectedTask && !isModalOpen) {
+      // Modal is opening - initialize history with first task
+      setTaskHistory([selectedTask]);
+      setIsModalOpen(true);
+    } else if (!selectedTask && isModalOpen) {
+      // Modal is closing - clear history
+      setTaskHistory([]);
+      setIsModalOpen(false);
+    }
+  }, [selectedTask, isModalOpen]);
+
+  // Navigate back to previous task
+  const handleBackNavigation = () => {
+    if (taskHistory.length > 1) {
+      // Remove current task and go to previous one
+      const newHistory = taskHistory.slice(0, -1);
+      const previousTask = newHistory[newHistory.length - 1];
+      setTaskHistory(newHistory);
+      onTaskSelect && onTaskSelect(previousTask);
+    } else {
+      // If no history, just close the modal
+      onClose();
+    }
+  };
+
+  // Handle dependency click navigation
+  const handleDependencyTaskSelect = (task) => {
+    if (onTaskSelect) {
+      // Add the new task to history for navigation tracking
+      setTaskHistory(prev => [...prev, task]);
+      onTaskSelect(task);
+    }
+  };
 
   const toggleSubtaskExpansion = (subtaskId) => {
     setExpandedSubtasks(prev => ({
@@ -35,7 +73,7 @@ const TaskDetailModal = ({
           className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-100 transition-colors ${
             isBlocking ? 'border-red-300 bg-red-50 hover:bg-red-100' : 'border-gray-200 hover:bg-gray-50'
           }`}
-          onClick={() => onTaskSelect && onTaskSelect(depTask)}
+          onClick={() => handleDependencyTaskSelect(depTask)}
         >
           <div className="flex items-center gap-3">
             <span className={`w-3 h-3 rounded-full ${getStatusColor(depTask.status)}`}></span>
@@ -84,21 +122,32 @@ const TaskDetailModal = ({
           {/* 모달 헤더 - 고정 */}
           <div className="sticky top-0 bg-white z-10 border-b border-gray-200 pb-4 mb-6">
             <div className="flex items-start justify-between mb-4">
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold text-gray-900 mb-3">{selectedTask.title}</h2>
-                <div className="flex items-center gap-4">
-                  <div className="text-lg font-medium text-gray-600">Task #{selectedTask.id}</div>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedTask.status)}`}>
-                    {getStatusIcon(selectedTask.status)}
-                    <span className="ml-1 capitalize">{selectedTask.status}</span>
-                  </span>
-                  
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTask.priority)}`}></div>
-                    <span className="text-sm text-gray-600 capitalize">{selectedTask.priority} Priority</span>
+              <div className="flex items-start gap-3 flex-1">
+                {taskHistory.length > 1 && (
+                  <button
+                    onClick={handleBackNavigation}
+                    className="text-gray-400 hover:text-gray-600 p-2 mt-1 flex-shrink-0"
+                    title="Go back to previous task"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                )}
+                <div className="flex-1">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-3">{selectedTask.title}</h2>
+                    <div className="flex items-center gap-4">
+                      <div className="text-lg font-medium text-gray-600">Task #{selectedTask.id}</div>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(selectedTask.status)}`}>
+                        {getStatusIcon(selectedTask.status)}
+                        <span className="ml-1 capitalize">{selectedTask.status}</span>
+                      </span>
+                      
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${getPriorityColor(selectedTask.priority)}`}></div>
+                        <span className="text-sm text-gray-600 capitalize">{selectedTask.priority} Priority</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 p-2 ml-4 flex-shrink-0"

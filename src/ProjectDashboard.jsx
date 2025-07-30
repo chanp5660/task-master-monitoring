@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, AlertCircle, BarChart3, Edit, X, FileText, Users, RefreshCw, ExternalLink, ChevronUp, ChevronDown, Plus, FolderPlus, Github, Network, Trash, MessageSquare, Save } from 'lucide-react';
+import { Search, AlertCircle, BarChart3, Edit, FileText, Users, RefreshCw, ExternalLink, ChevronUp, ChevronDown, Plus, FolderPlus, Github, Network, Trash, MessageSquare, Save, Home } from 'lucide-react';
 import DiagramView from './components/DiagramView';
 import TaskStats from './components/TaskStats';
 import TaskDetailModal from './components/TaskDetailModal';
@@ -211,8 +211,8 @@ const ProjectDashboard = () => {
                 onClick={() => setTasksData(null)}
                 className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm inline-flex items-center gap-2 transition-colors"
               >
-                <X className="w-4 h-4" />
-                Close
+                <Home className="w-4 h-4" />
+                Home
               </button>
             </div>
           </div>
