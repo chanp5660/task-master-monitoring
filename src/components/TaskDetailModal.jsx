@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart3, Save, X, ChevronDown, MessageSquare, ArrowLeft } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { getStatusColor, getPriorityColor, getStatusIcon, hasUncompletedDependencies, isReadyToStart, hasUncompletedSubtaskDependencies, isSubtaskReadyToStart, getUncompletedDependencies, getUncompletedSubtaskDependencies } from '../utils/taskUtils';
 
 const TaskDetailModal = ({ 
@@ -161,7 +162,11 @@ const TaskDetailModal = ({
           <div className="mb-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">Description</h3>
             <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedTask.description}</p>
+              <div className="prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-700">
+                <ReactMarkdown>
+                  {selectedTask.description}
+                </ReactMarkdown>
+              </div>
             </div>
           </div>
 
@@ -183,7 +188,11 @@ const TaskDetailModal = ({
                 Details
               </h4>
               <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{selectedTask.details}</div>
+                <div className="prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-700">
+                  <ReactMarkdown>
+                    {selectedTask.details}
+                  </ReactMarkdown>
+                </div>
               </div>
             </div>
           )}
@@ -221,7 +230,7 @@ const TaskDetailModal = ({
                           <span className="text-sm font-medium text-gray-500">#{subtask.id}</span>
                         </div>
                         {!expandedSubtasks[subtask.id] && (
-                          <div className="text-sm text-gray-600 truncate">{subtask.description}</div>
+                          <div className="text-sm text-gray-600 truncate line-clamp-1">{subtask.description}</div>
                         )}
                       </div>
                       
@@ -246,7 +255,11 @@ const TaskDetailModal = ({
                           {/* 상세 설명 */}
                           <div>
                             <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{subtask.description}</p>
+                            <div className="prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-700">
+                              <ReactMarkdown>
+                                {subtask.description}
+                              </ReactMarkdown>
+                            </div>
                           </div>
                           
                           {/* 의존성 */}
@@ -263,7 +276,11 @@ const TaskDetailModal = ({
                           {subtask.details && (
                             <div>
                               <h4 className="font-medium text-gray-900 mb-2">Details</h4>
-                              <p className="text-sm text-gray-700 whitespace-pre-wrap">{subtask.details}</p>
+                              <div className="prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-700">
+                                <ReactMarkdown>
+                                  {subtask.details}
+                                </ReactMarkdown>
+                              </div>
                             </div>
                           )}
                         </div>
