@@ -157,6 +157,21 @@ const ProjectDashboard = () => {
     moveTask(taskId, direction, taskFilterHook.filteredTasks);
   };
 
+  // 칸반 보드용 상태별 그룹핑
+  const getTasksByColumn = () => {
+    const todoStatuses = ['pending', 'deferred', 'blocked'];
+    const inProgressStatuses = ['in-progress', 'review'];
+    const doneStatuses = ['done', 'completed', 'cancelled'];
+
+    return {
+      todo: taskFilterHook.filteredTasks.filter(task => todoStatuses.includes(task.status)),
+      inProgress: taskFilterHook.filteredTasks.filter(task => inProgressStatuses.includes(task.status)), 
+      done: taskFilterHook.filteredTasks.filter(task => doneStatuses.includes(task.status))
+    };
+  };
+
+  const kanbanColumns = getTasksByColumn();
+
   if (!tasksData) {
     return (
       <ProjectList
@@ -175,7 +190,7 @@ const ProjectDashboard = () => {
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
       <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 transition-all duration-300`} style={{ marginRight: selectedTask ? `${sidebarWidth}px` : '0' }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div>
               {projectHook.currentProject && (
@@ -264,73 +279,240 @@ const ProjectDashboard = () => {
             />
           </div>
         ) : viewMode === 'cards' ? (
-          <DragAndDropProvider
-            items={taskFilterHook.filteredTasks}
-            onDragEnd={handleDragEnd}
-            disabled={viewMode === 'diagram'}
-            strategy="rect"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {taskFilterHook.filteredTasks.map((task) => (
-                <SortableTaskItem
-                  key={task.id}
-                  id={task.id}
-                  showDragHandle={true}
-                  className={`rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer ${
-                    hasUncompletedDependencies(task, tasksData.tasks) 
-                      ? 'bg-red-50 border border-red-200' 
-                      : isReadyToStart(task, tasksData.tasks)
-                        ? 'bg-blue-50 border border-blue-200'
-                        : 'bg-white'
-                  }`}
-                >
-                  <div onClick={() => setSelectedTask(task)}>
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-bold text-gray-500">#{task.id}</span>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
-                        {getStatusIcon(task.status)}
-                        <span className="ml-1 capitalize">{task.status}</span>
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
-                      <span className="text-xs text-gray-500 capitalize">{task.priority}</span>
-                    </div>
-                  </div>
-                  
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-2">{task.title.replace(/^#\d+\s*/, '')}</h3>
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-3">{task.description}</p>
-                  
-                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                    {task.dependencies?.length > 0 && (
-                      <span>Dependencies: {renderDependencies(task)}</span>
-                    )}
-                  </div>
-                  
-                  {task.subtasks && task.subtasks.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
-                        <span>Subtasks</span>
-                        <span>{task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length}/{task.subtasks.length}</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="bg-blue-500 h-2 rounded-full" 
-                          style={{ 
-                            width: `${(task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length / task.subtasks.length) * 100}%` 
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
+          <div className="bg-white rounded-lg shadow">
+            <div className="grid grid-cols-3 gap-6 p-6">
+              {/* Todo 열 */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-800">할일</h3>
+                  <span className="bg-gray-200 text-gray-600 px-2 py-1 rounded-full text-sm font-medium">
+                    {kanbanColumns.todo.length}
+                  </span>
                 </div>
+                <DragAndDropProvider
+                  items={kanbanColumns.todo}
+                  onDragEnd={handleDragEnd}
+                  disabled={false}
+                  strategy="vertical"
+                >
+                  <div className="space-y-4">
+                    {kanbanColumns.todo.map((task) => (
+                      <SortableTaskItem
+                        key={task.id}
+                        id={task.id}
+                        showDragHandle={true}
+                        className={`rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer ${
+                          hasUncompletedDependencies(task, tasksData.tasks) 
+                            ? 'bg-red-50 border border-red-200' 
+                            : isReadyToStart(task, tasksData.tasks)
+                              ? 'bg-blue-50 border border-blue-200'
+                              : 'bg-white'
+                        }`}
+                      >
+                        <div onClick={() => setSelectedTask(task)}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-gray-500">#{task.id}</span>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                                  {getStatusIcon(task.status)}
+                                  <span className="ml-1 capitalize">{task.status}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                                <span className="text-xs text-gray-500 capitalize">{task.priority}</span>
+                              </div>
+                            </div>
+                            
+                            <h4 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2">{task.title.replace(/^#\d+\s*/, '')}</h4>
+                            <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+                            
+                            {task.dependencies?.length > 0 && (
+                              <div className="text-xs text-gray-500 mb-3">
+                                Dependencies: {renderDependencies(task)}
+                              </div>
+                            )}
+                            
+                            {task.subtasks && task.subtasks.length > 0 && (
+                              <div className="mb-3">
+                                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                                  <span>Subtasks</span>
+                                  <span>{task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length}/{task.subtasks.length}</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-blue-500 h-1.5 rounded-full" 
+                                    style={{ 
+                                      width: `${(task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length / task.subtasks.length) * 100}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </SortableTaskItem>
+                    ))}
                   </div>
-                </SortableTaskItem>
-              ))}
+                </DragAndDropProvider>
+              </div>
+
+              {/* In Progress 열 */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-blue-200">
+                  <h3 className="text-lg font-semibold text-blue-800">진행중</h3>
+                  <span className="bg-blue-200 text-blue-700 px-2 py-1 rounded-full text-sm font-medium">
+                    {kanbanColumns.inProgress.length}
+                  </span>
+                </div>
+                <DragAndDropProvider
+                  items={kanbanColumns.inProgress}
+                  onDragEnd={handleDragEnd}
+                  disabled={false}
+                  strategy="vertical"
+                >
+                  <div className="space-y-4">
+                    {kanbanColumns.inProgress.map((task) => (
+                      <SortableTaskItem
+                        key={task.id}
+                        id={task.id}
+                        showDragHandle={true}
+                        className={`rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer ${
+                          hasUncompletedDependencies(task, tasksData.tasks) 
+                            ? 'bg-red-50 border border-red-200' 
+                            : isReadyToStart(task, tasksData.tasks)
+                              ? 'bg-blue-50 border border-blue-200'
+                              : 'bg-white'
+                        }`}
+                      >
+                        <div onClick={() => setSelectedTask(task)}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-gray-500">#{task.id}</span>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                                  {getStatusIcon(task.status)}
+                                  <span className="ml-1 capitalize">{task.status}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                                <span className="text-xs text-gray-500 capitalize">{task.priority}</span>
+                              </div>
+                            </div>
+                            
+                            <h4 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2">{task.title.replace(/^#\d+\s*/, '')}</h4>
+                            <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+                            
+                            {task.dependencies?.length > 0 && (
+                              <div className="text-xs text-gray-500 mb-3">
+                                Dependencies: {renderDependencies(task)}
+                              </div>
+                            )}
+                            
+                            {task.subtasks && task.subtasks.length > 0 && (
+                              <div className="mb-3">
+                                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                                  <span>Subtasks</span>
+                                  <span>{task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length}/{task.subtasks.length}</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-blue-500 h-1.5 rounded-full" 
+                                    style={{ 
+                                      width: `${(task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length / task.subtasks.length) * 100}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </SortableTaskItem>
+                    ))}
+                  </div>
+                </DragAndDropProvider>
+              </div>
+
+              {/* Done 열 */}
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-4 pb-2 border-b border-green-200">
+                  <h3 className="text-lg font-semibold text-green-800">완료</h3>
+                  <span className="bg-green-200 text-green-700 px-2 py-1 rounded-full text-sm font-medium">
+                    {kanbanColumns.done.length}
+                  </span>
+                </div>
+                <DragAndDropProvider
+                  items={kanbanColumns.done}
+                  onDragEnd={handleDragEnd}
+                  disabled={false}
+                  strategy="vertical"
+                >
+                  <div className="space-y-4">
+                    {kanbanColumns.done.map((task) => (
+                      <SortableTaskItem
+                        key={task.id}
+                        id={task.id}
+                        showDragHandle={true}
+                        className={`rounded-lg shadow hover:shadow-lg transition-shadow cursor-pointer ${
+                          hasUncompletedDependencies(task, tasksData.tasks) 
+                            ? 'bg-red-50 border border-red-200' 
+                            : isReadyToStart(task, tasksData.tasks)
+                              ? 'bg-blue-50 border border-blue-200'
+                              : 'bg-white'
+                        }`}
+                      >
+                        <div onClick={() => setSelectedTask(task)}>
+                          <div className="p-4">
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-gray-500">#{task.id}</span>
+                                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+                                  {getStatusIcon(task.status)}
+                                  <span className="ml-1 capitalize">{task.status}</span>
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <div className={`w-3 h-3 rounded-full ${getPriorityColor(task.priority)}`}></div>
+                                <span className="text-xs text-gray-500 capitalize">{task.priority}</span>
+                              </div>
+                            </div>
+                            
+                            <h4 className="text-sm font-semibold text-gray-900 mb-2 line-clamp-2">{task.title.replace(/^#\d+\s*/, '')}</h4>
+                            <p className="text-xs text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+                            
+                            {task.dependencies?.length > 0 && (
+                              <div className="text-xs text-gray-500 mb-3">
+                                Dependencies: {renderDependencies(task)}
+                              </div>
+                            )}
+                            
+                            {task.subtasks && task.subtasks.length > 0 && (
+                              <div className="mb-3">
+                                <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                                  <span>Subtasks</span>
+                                  <span>{task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length}/{task.subtasks.length}</span>
+                                </div>
+                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                  <div 
+                                    className="bg-blue-500 h-1.5 rounded-full" 
+                                    style={{ 
+                                      width: `${(task.subtasks.filter(st => st.status === 'done' || st.status === 'completed').length / task.subtasks.length) * 100}%` 
+                                    }}
+                                  ></div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </SortableTaskItem>
+                    ))}
+                  </div>
+                </DragAndDropProvider>
+              </div>
             </div>
-          </DragAndDropProvider>
+          </div>
         ) : (
           <DragAndDropProvider
             items={taskFilterHook.filteredTasks}
