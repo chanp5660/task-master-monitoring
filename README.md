@@ -75,7 +75,7 @@ tmm
 
 #### 옵션
 ```bash
-# 기본 포트(3001)로 실행
+# 기본 포트(3001)로 실행  
 tmm
 
 # 사용자 정의 포트로 실행
@@ -88,7 +88,9 @@ tmm --help
 tmm --version
 ```
 
-서버 시작 후 브라우저에서 **http://localhost:3000**으로 접속하세요.
+서버 시작 후 브라우저에서 **http://localhost:3000** 으로 접속하세요.
+
+> **참고**: 글로벌 설치 시 사용자 프로젝트 데이터는 `~/.task-master-monitoring/projects/` 디렉토리에 저장됩니다.
 
 ---
 
@@ -138,12 +140,10 @@ npm test
 
 ```
 project-dashboard/
+├── bin/
+│   └── tmm.js                      # CLI 실행 파일
 ├── public/
-│   ├── projects/                    # 프로젝트 데이터 폴더
-│   │   ├── cpue_prediction_dataset/ # CPUE 예측 프로젝트
-│   │   │   ├── task-memo.json       # 태스크별 메모
-│   │   │   ├── dashboard-memo.json  # 대시보드 메모
-│   │   │   └── path.txt            # 외부 경로 링크
+│   ├── projects/                   # 로컬 프로젝트 데이터 (개발용)
 │   │   └── test/                   # 테스트 프로젝트
 │   │       ├── tasks.json          # 태스크 데이터
 │   │       ├── task-memo.json      # 태스크 메모
@@ -152,15 +152,39 @@ project-dashboard/
 ├── src/
 │   ├── components/                 # React 컴포넌트
 │   │   ├── DiagramView.jsx         # 다이어그램 뷰 컴포넌트
-│   │   └── TaskNode.jsx            # 커스텀 노드 컴포넌트
+│   │   ├── FilterBar.jsx           # 필터링 바 컴포넌트
+│   │   ├── ProjectList.jsx         # 프로젝트 목록 컴포넌트
+│   │   ├── TaskDetailModal.jsx     # 작업 상세 모달 컴포넌트
+│   │   ├── TaskNode.jsx            # 커스텀 노드 컴포넌트
+│   │   └── TaskStats.jsx           # 작업 통계 컴포넌트
+│   ├── hooks/                      # 커스텀 훅
+│   │   ├── useMemos.js             # 메모 관리 훅
+│   │   ├── useProjects.js          # 프로젝트 관리 훅
+│   │   ├── useTaskFiltering.js     # 태스크 필터링 훅
+│   │   └── useTaskOrder.js         # 태스크 정렬 훅
+│   ├── utils/                      # 유틸리티 함수
+│   │   ├── projectUtils.js         # 프로젝트 관련 유틸리티
+│   │   └── taskUtils.js            # 태스크 관련 유틸리티
 │   ├── App.js                      # 루트 컴포넌트
 │   ├── ProjectDashboard.jsx        # 메인 대시보드 컴포넌트
 │   └── index.js
 ├── server.js                       # Express 백엔드 서버
 ├── CLAUDE.md                       # Claude Code 설정
-├── MEMO_API_GUIDE.md              # 메모 API 가이드
 ├── package.json
 └── README.md
+```
+
+### 사용자 데이터 디렉토리
+글로벌 설치 시 사용자 데이터는 다음 위치에 저장됩니다:
+```
+~/.task-master-monitoring/
+└── projects/                       # 사용자 프로젝트 데이터
+    ├── project-name/
+    │   ├── tasks.json              # 태스크 데이터
+    │   ├── task-memo.json          # 태스크별 메모
+    │   ├── dashboard-memo.json     # 대시보드 메모
+    │   └── path.txt               # 외부 경로 링크 (선택적)
+    └── ...
 ```
 
 ## 🔧 API 엔드포인트
@@ -174,7 +198,7 @@ project-dashboard/
 ### 프로젝트 관리
 - **POST** `/api/create-project-dir` - 프로젝트 디렉토리 생성
 - **POST** `/api/create-project` - 새 프로젝트 생성 (외부 링크 포함)
-- **GET** `/api/scan-projects` - 로컬 프로젝트 스캔
+- **GET** `/api/scan-projects` - 사용자 디렉토리 프로젝트 스캔
 - **GET** `/api/scan-external-links` - 외부 링크 프로젝트 스캔
 - **POST** `/api/load-external-path` - 외부 경로에서 데이터 로드
 
@@ -246,6 +270,8 @@ project-dashboard/
 1. "Available Projects" 섹션에서 프로젝트 선택
 2. "Connect" 버튼 클릭하여 로드
 
+> **참고**: 글로벌 설치 시 사용자 홈 디렉토리(`~/.task-master-monitoring/projects/`)의 프로젝트들이 표시됩니다.
+
 ### 3. 외부 프로젝트 연결
 1. "Create New Project" 섹션에서 프로젝트 정보 입력
 2. 외부 JSON 파일 경로 지정
@@ -261,26 +287,23 @@ project-dashboard/
 - **정렬**: 다양한 기준으로 작업 정렬 (의존성 기반 포함)
 - **상태 변경**: 카드나 리스트에서 직접 상태 변경
 - **상세 보기**: "Details" 버튼 또는 다이어그램 노드 클릭으로 작업 상세 정보 확인
-
-
-![](https://i.imgur.com/Eic8VIe.png)
-![](https://i.imgur.com/DG1JXJT.png)
-![](https://i.imgur.com/ZmzyZI9.png)
-![](https://i.imgur.com/FXyzbAP.png)
-![](https://i.imgur.com/r4FFeOA.png)
-
+- **의존성 탐색**: 작업 상세보기에서 Dependencies와 Subtasks ID 클릭으로 연관 작업 바로 이동
 
 ### 5. 메모 활용
 - **태스크 메모**: 각 작업 카드에서 메모 아이콘 클릭하여 작성
 - **대시보드 메모**: 우측 상단 메모 섹션에서 전체 프로젝트 메모 작성
+- **메모 접기/펼치기**: 대시보드 메모 영역 크기 조절 및 토글 기능
 - **자동 저장**: 작성한 메모는 백엔드 API를 통해 자동으로 파일에 저장
 
-![](https://i.imgur.com/QrJi1FD.png)
-![](https://i.imgur.com/rBsLswU.png)
+## 🔄 최근 업데이트 내역 (v1.4.0)
 
-## 🔄 최근 업데이트 내역 (v1.3.0)
+### 🎯 최신 기능 개선 (v1.4.0)
+- **Dependencies 연결 기능**: Task 상세보기 모달에서 Dependencies와 Subtasks ID 클릭 시 해당 task 상세보기 모달 열기
+- **대시보드 메모 개선**: 대시보드 메모 접기/펼치기 기능 및 동적 높이 조절 추가
+- **프로젝트 관리 안정성**: 프로젝트 삭제 모달 취소 버튼 오류 수정
+- **시각적 개선**: 작업 상세보기 모달에서 Dependencies와 Subtasks ID 표시 추가
 
-### 🎯 최신 아키텍처 개선 (v1.3.0)
+### 🏗️ 아키텍처 개선 (v1.3.0)
 - **컴포넌트 모듈화**: ProjectDashboard 코드 구조 개선 및 컴포넌트 분리
 - **커스텀 훅 도입**: useProjects, useMemos, useTaskFiltering, useTaskOrder 등 로직 분리
 - **유틸리티 함수 체계화**: taskUtils.js, projectUtils.js로 공통 함수 정리
@@ -298,9 +321,10 @@ project-dashboard/
 - **메모 시스템**: 태스크별/대시보드별 메모 기능 구현
 - **백엔드 API 서버**: Express 기반 REST API 서버
 - **외부 프로젝트 연결**: path.txt를 통한 외부 JSON 파일 연결
-- **프로젝트 자동 스캔**: 동적 프로젝트 검색 및 목록화
+- **프로젝트 자동 스캔**: 사용자 홈 디렉토리 기반 프로젝트 검색
 - **의존성 기반 정렬**: 스마트 토폴로지 정렬 알고리즘
 - **필터링 & 검색**: 상태, 우선순위별 필터 및 텍스트 검색
+- **CLI 도구**: 글로벌 설치 및 명령행 인터페이스 지원
 
 ## 📄 라이선스
 
