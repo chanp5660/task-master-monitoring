@@ -860,6 +860,83 @@ app.delete('/api/delete-pomodoro-session', (req, res) => {
   }
 });
 
+// 뽀모도로 세션 다중 삭제 API
+app.delete('/api/delete-pomodoro-sessions', (req, res) => {
+  try {
+    const { project, sessionIds } = req.body;
+    
+    if (!project || !sessionIds || !Array.isArray(sessionIds) || sessionIds.length === 0) {
+      return res.status(400).json({ error: 'Project and sessionIds array are required' });
+    }
+    
+    const pomodoroFilePath = path.join(USER_PROJECTS_DIR, project, 'pomodoro-history.json');
+    
+    if (!fs.existsSync(pomodoroFilePath)) {
+      return res.status(404).json({ error: 'Pomodoro history file not found' });
+    }
+    
+    // 기존 데이터 읽기
+    const pomodoroData = JSON.parse(fs.readFileSync(pomodoroFilePath, 'utf8'));
+    
+    // 삭제할 세션들 찾기
+    const sessionsToDelete = pomodoroData.sessions.filter(s => sessionIds.includes(s.id));
+    if (sessionsToDelete.length === 0) {
+      return res.status(404).json({ error: 'No matching sessions found' });
+    }
+    
+    // 세션들 삭제
+    pomodoroData.sessions = pomodoroData.sessions.filter(s => !sessionIds.includes(s.id));
+    
+    // 영향받은 날짜들 수집
+    const affectedDates = [...new Set(sessionsToDelete.map(s => s.startTime.split('T')[0]))];
+    
+    // 각 날짜별로 통계 재계산
+    affectedDates.forEach(sessionDate => {
+      const dailySessions = pomodoroData.sessions.filter(s => s.startTime.split('T')[0] === sessionDate);
+      
+      if (dailySessions.length === 0) {
+        // 해당 날짜의 세션이 모두 삭제된 경우 통계 삭제
+        delete pomodoroData.dailyStats[sessionDate];
+      } else {
+        // 통계 재계산
+        const workSessions = dailySessions.filter(s => s.type === 'work').length;
+        const breakSessions = dailySessions.filter(s => s.type === 'break').length;
+        const totalFocusTime = dailySessions
+          .filter(s => s.type === 'work')
+          .reduce((total, s) => total + s.duration, 0);
+        const completedSessions = dailySessions.filter(s => s.completed);
+        const completionRate = dailySessions.length > 0 ? 
+          Math.round((completedSessions.length / dailySessions.length) * 100) : 0;
+        
+        pomodoroData.dailyStats[sessionDate] = {
+          workSessions,
+          breakSessions,
+          totalFocusTime,
+          completionRate
+        };
+      }
+    });
+    
+    // 파일 저장
+    fs.writeFileSync(pomodoroFilePath, JSON.stringify(pomodoroData, null, 2), 'utf8');
+    
+    console.log(`${sessionsToDelete.length} Pomodoro sessions deleted from: ${pomodoroFilePath}`);
+    res.json({ 
+      success: true, 
+      message: `${sessionsToDelete.length} sessions deleted successfully`,
+      deletedSessionIds: sessionIds,
+      affectedDates: affectedDates
+    });
+    
+  } catch (error) {
+    console.error('Error deleting pomodoro sessions:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete pomodoro sessions', 
+      details: error.message 
+    });
+  }
+});
+
 // React 앱 서빙 (모든 다른 라우트) - 프로덕션 모드에서만
 app.get('*', (_, res) => {
   const buildIndexPath = path.join(__dirname, 'build', 'index.html');
@@ -886,4 +963,5 @@ app.listen(PORT, () => {
   console.log(`  POST /api/save-pomodoro - Save pomodoro session to file`);
   console.log(`  GET  /api/load-pomodoro-history/:project - Load pomodoro history from file`);
   console.log(`  DELETE /api/delete-pomodoro-session - Delete a specific pomodoro session`);
+  console.log(`  DELETE /api/delete-pomodoro-sessions - Delete multiple pomodoro sessions`);
 });

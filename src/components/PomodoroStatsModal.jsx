@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, Target, TrendingUp, Calendar, Play, Pause, Trash2 } from 'lucide-react';
+import { X, Clock, Target, TrendingUp, Calendar, Play, Pause, Trash2, Edit3, Check, ChevronLeft } from 'lucide-react';
 
 const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
   const [pomodoroData, setPomodoroData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedSessions, setSelectedSessions] = useState(new Set());
 
   useEffect(() => {
     if (isOpen && currentProject) {
@@ -69,6 +71,70 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
       }
     } catch (error) {
       console.error('❌ Error deleting session:', error);
+      alert('세션 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+    setSelectedSessions(new Set());
+  };
+
+  const toggleSessionSelection = (sessionId) => {
+    const newSelected = new Set(selectedSessions);
+    if (newSelected.has(sessionId)) {
+      newSelected.delete(sessionId);
+    } else {
+      newSelected.add(sessionId);
+    }
+    setSelectedSessions(newSelected);
+  };
+
+  const selectAllSessions = () => {
+    const dateSessions = getDateSessions(selectedDate).filter(session => session.type === 'work');
+    const allSessionIds = new Set(dateSessions.map(session => session.id));
+    setSelectedSessions(allSessionIds);
+  };
+
+  const deselectAllSessions = () => {
+    setSelectedSessions(new Set());
+  };
+
+  const deleteSelectedSessions = async () => {
+    if (selectedSessions.size === 0) {
+      alert('삭제할 세션을 선택해주세요.');
+      return;
+    }
+
+    if (!window.confirm(`선택한 ${selectedSessions.size}개의 세션을 삭제하시겠습니까?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/delete-pomodoro-sessions', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          project: currentProject.folderName || currentProject.name,
+          sessionIds: Array.from(selectedSessions)
+        })
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        console.log('✅ Sessions deleted successfully!');
+        setSelectedSessions(new Set());
+        setIsEditMode(false);
+        // 데이터 재로드
+        loadPomodoroHistory();
+      } else {
+        console.error('❌ Failed to delete sessions:', result.error);
+        alert('세션 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting sessions:', error);
       alert('세션 삭제 중 오류가 발생했습니다.');
     }
   };
@@ -288,13 +354,72 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
               <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">세션 기록</h3>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="text-sm border border-gray-300 rounded px-3 py-1"
-                  />
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="text-sm border border-gray-300 rounded px-3 py-1"
+                    />
+                    <button
+                      onClick={toggleEditMode}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors ${
+                        isEditMode 
+                          ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' 
+                          : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                      }`}
+                    >
+                      {isEditMode ? (
+                        <>
+                          <ChevronLeft className="w-4 h-4" />
+                          취소
+                        </>
+                      ) : (
+                        <>
+                          <Edit3 className="w-4 h-4" />
+                          편집
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
+
+                {/* 편집 모드 컨트롤 */}
+                {isEditMode && (
+                  <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <span className="text-sm text-blue-700">
+                        {selectedSessions.size}개 선택됨
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={selectAllSessions}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          전체 선택
+                        </button>
+                        <button
+                          onClick={deselectAllSessions}
+                          className="text-xs text-blue-600 hover:text-blue-800 underline"
+                        >
+                          선택 해제
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      onClick={deleteSelectedSessions}
+                      disabled={selectedSessions.size === 0}
+                      className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded transition-colors ${
+                        selectedSessions.size > 0
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      삭제
+                    </button>
+                  </div>
+                )}
                 
                 <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                   <div className="grid grid-cols-2 gap-4 text-center">
@@ -315,9 +440,21 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
 
                 <div className="space-y-2 max-h-60 overflow-y-auto">
                   {getDateSessions(selectedDate).filter(session => session.type === 'work').length > 0 ? (
-                    getDateSessions(selectedDate).filter(session => session.type === 'work').map((session, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded group">
+                    getDateSessions(selectedDate).filter(session => session.type === 'work').map((session) => (
+                      <div key={session.id} className={`flex items-center justify-between p-3 rounded group transition-colors ${
+                        isEditMode && selectedSessions.has(session.id) 
+                          ? 'bg-blue-50 border-2 border-blue-200' 
+                          : 'bg-gray-50 border-2 border-transparent'
+                      }`}>
                         <div className="flex items-center gap-3">
+                          {isEditMode && (
+                            <input
+                              type="checkbox"
+                              checked={selectedSessions.has(session.id)}
+                              onChange={() => toggleSessionSelection(session.id)}
+                              className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                            />
+                          )}
                           <div className="w-3 h-3 rounded-full bg-red-500"></div>
                           <div>
                             <div className="text-sm font-medium">
@@ -343,13 +480,15 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
                               <span className="ml-2 text-red-600">✗</span>
                             )}
                           </div>
-                          <button
-                            onClick={() => deleteSession(session.id)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 transition-all"
-                            title="세션 삭제"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                          {!isEditMode && (
+                            <button
+                              onClick={() => deleteSession(session.id)}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-red-500 hover:text-red-700 transition-all"
+                              title="세션 삭제"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))
