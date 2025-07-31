@@ -184,7 +184,7 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
           ) : pomodoroData ? (
             <div className="space-y-8">
               {/* 오늘의 통계 */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-red-50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Play className="w-4 h-4 text-red-500" />
@@ -198,16 +198,6 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
                   </div>
                 </div>
                 
-                <div className="bg-green-50 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Pause className="w-4 h-4 text-green-500" />
-                    <span className="text-sm font-medium text-green-700">오늘 휴식</span>
-                  </div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {pomodoroData.todayStats.breakSessions}
-                  </div>
-                  <div className="text-xs text-green-600">세션</div>
-                </div>
                 
                 <div className="bg-blue-50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -307,18 +297,12 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
                 </div>
                 
                 <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="grid grid-cols-2 gap-4 text-center">
                     <div>
                       <div className="text-lg font-bold text-red-600">
                         {getDateStats(selectedDate).workSessions}
                       </div>
                       <div className="text-xs text-gray-600">작업 세션</div>
-                    </div>
-                    <div>
-                      <div className="text-lg font-bold text-green-600">
-                        {getDateStats(selectedDate).breakSessions}
-                      </div>
-                      <div className="text-xs text-gray-600">휴식 세션</div>
                     </div>
                     <div>
                       <div className="text-lg font-bold text-blue-600">
@@ -330,16 +314,14 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
                 </div>
 
                 <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {getDateSessions(selectedDate).length > 0 ? (
-                    getDateSessions(selectedDate).map((session, index) => (
+                  {getDateSessions(selectedDate).filter(session => session.type === 'work').length > 0 ? (
+                    getDateSessions(selectedDate).filter(session => session.type === 'work').map((session, index) => (
                       <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded group">
                         <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${
-                            session.type === 'work' ? 'bg-red-500' : 'bg-green-500'
-                          }`}></div>
+                          <div className="w-3 h-3 rounded-full bg-red-500"></div>
                           <div>
                             <div className="text-sm font-medium">
-                              {session.type === 'work' ? '작업' : '휴식'} ({formatTime(session.duration)})
+                              작업 ({formatTime(session.duration)})
                               {session.skipped && (
                                 <span className="ml-2 text-orange-600 text-xs">(건너뛰기)</span>
                               )}
@@ -373,7 +355,7 @@ const PomodoroStatsModal = ({ isOpen, onClose, currentProject }) => {
                     ))
                   ) : (
                     <div className="text-center py-8 text-gray-500">
-                      선택한 날짜에 기록된 세션이 없습니다.
+                      선택한 날짜에 기록된 작업 세션이 없습니다.
                     </div>
                   )}
                 </div>

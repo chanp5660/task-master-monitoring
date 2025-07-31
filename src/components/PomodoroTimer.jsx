@@ -11,6 +11,7 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
   const [customBreakTime, setCustomBreakTime] = useState(5);
   const [customLongBreakTime, setCustomLongBreakTime] = useState(15);
   const [sessionStartTime, setSessionStartTime] = useState(null);
+  const [isSkipped, setIsSkipped] = useState(false); // 건너뛰기 플래그
   const intervalRef = useRef(null);
 
   const WORK_TIME = customWorkTime * 60;
@@ -22,42 +23,47 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
       intervalRef.current = setInterval(() => {
         setTimeLeft((time) => time - 1);
       }, 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && !isSkipped) {
       handleSessionEnd();
     } else {
       clearInterval(intervalRef.current);
     }
 
     return () => clearInterval(intervalRef.current);
-  }, [isActive, timeLeft]);
+  }, [isActive, timeLeft, isSkipped]);
 
   const handleSessionEnd = () => {
     setIsActive(false);
     
-    // 세션 완료 기록
-    const sessionData = {
-      id: Date.now().toString(),
-      taskId: currentTask?.id || null,
-      taskTitle: currentTask?.title || 'No task selected',
-      type: isWorkSession ? 'work' : 'break',
-      duration: isWorkSession ? WORK_TIME / 60 : (sessionCount % 4 === 3 ? LONG_BREAK_TIME / 60 : BREAK_TIME / 60),
-      startTime: sessionStartTime ? sessionStartTime.toISOString() : new Date(Date.now() - (isWorkSession ? WORK_TIME : (sessionCount % 4 === 3 ? LONG_BREAK_TIME : BREAK_TIME)) * 1000).toISOString(),
-      endTime: new Date().toISOString(),
-      completed: true
-    };
+    // 작업 세션만 기록 (휴식 세션은 저장하지 않음)
+    if (isWorkSession) {
+      const sessionData = {
+        id: Date.now().toString(),
+        taskId: currentTask?.id || null,
+        taskTitle: currentTask?.title || 'No task selected',
+        type: 'work',
+        duration: WORK_TIME / 60,
+        startTime: sessionStartTime ? sessionStartTime.toISOString() : new Date(Date.now() - WORK_TIME * 1000).toISOString(),
+        endTime: new Date().toISOString(),
+        completed: true
+      };
+      
+      console.log('✅ 정상 완료 세션 데이터:', sessionData);
+      
+      if (onSessionComplete) {
+        onSessionComplete(sessionData);
+      }
+    }
     
     setSessionStartTime(null);
-
-    if (onSessionComplete) {
-      onSessionComplete(sessionData);
-    }
+    setIsSkipped(false); // 플래그 리셋
 
     // 다음 세션으로 전환
     if (isWorkSession) {
       setSessionCount(prev => prev + 1);
       const nextSessionCount = sessionCount + 1;
       
-      // 4번째 작업 세션 후에는 긴 휴식
+      // 4번째 작업 세션 후에는 긴 휴식 (4, 8, 12, 16...)
       if (nextSessionCount % 4 === 0) {
         setTimeLeft(LONG_BREAK_TIME);
       } else {
@@ -100,34 +106,73 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
 
   const resetTimer = () => {
     setIsActive(false);
-    setTimeLeft(isWorkSession ? WORK_TIME : BREAK_TIME);
+    // 현재 세션 타입에 맞는 시간으로 리셋
+    if (isWorkSession) {
+      setTimeLeft(WORK_TIME);
+    } else {
+      // 휴식 세션인 경우 현재 세션 카운트에 따라 결정
+      setTimeLeft((sessionCount % 4 === 0) ? LONG_BREAK_TIME : BREAK_TIME);
+    }
     setSessionStartTime(null);
+    setIsSkipped(false); // 플래그 리셋
   };
 
   const skipSession = () => {
-    // 건너뛰기 시 실제 진행한 시간 계산
+    setIsSkipped(true); // 건너뛰기 플래그 설정
+    
+    // 작업 세션 건너뛰기 시에만 기록 (진행했던 시간만큼 모두 기록)
     if (sessionStartTime && isWorkSession) {
-      const actualDuration = Math.round((Date.now() - sessionStartTime.getTime()) / 1000 / 60); // 분 단위
+      const actualSeconds = Math.round((Date.now() - sessionStartTime.getTime()) / 1000);
+      const actualMinutes = Math.round(actualSeconds / 60);
       
-      // 실제 작업 시간으로 세션 기록
+      // 진행했던 모든 시간을 기록 (최소 1분)
+      const recordMinutes = Math.max(1, actualMinutes);
+      
       const sessionData = {
         id: Date.now().toString(),
         taskId: currentTask?.id || null,
         taskTitle: currentTask?.title || 'No task selected',
         type: 'work',
-        duration: actualDuration,
+        duration: recordMinutes,
         startTime: sessionStartTime.toISOString(),
         endTime: new Date().toISOString(),
         completed: false, // 건너뛰기는 미완료로 기록
         skipped: true
       };
       
+      console.log('⏭️ 건너뛰기 세션 데이터:', {
+        actualSeconds,
+        actualMinutes,
+        recordMinutes,
+        fullTime: WORK_TIME / 60,
+        sessionData
+      });
+      
       if (onSessionComplete) {
         onSessionComplete(sessionData);
       }
     }
     
-    setTimeLeft(0);
+    setSessionStartTime(null);
+    setIsActive(false); // 타이머 정지
+    
+    // 작업 세션 건너뛰기 후 휴식 세션으로 전환
+    if (isWorkSession) {
+      setSessionCount(prev => prev + 1);
+      const nextSessionCount = sessionCount + 1;
+      
+      // 4번째 작업 세션 후에는 긴 휴식 (4, 8, 12, 16...)
+      if (nextSessionCount % 4 === 0) {
+        setTimeLeft(LONG_BREAK_TIME);
+      } else {
+        setTimeLeft(BREAK_TIME);
+      }
+      setIsWorkSession(false);
+    } else {
+      // 휴식 세션 건너뛰기 후 작업 세션으로 전환 (휴식은 저장하지 않음)
+      setTimeLeft(WORK_TIME);
+      setIsWorkSession(true);
+    }
   };
 
   const formatTime = (seconds) => {
@@ -137,7 +182,7 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
   };
 
   const getProgressPercentage = () => {
-    const totalTime = isWorkSession ? WORK_TIME : (sessionCount % 4 === 3 ? LONG_BREAK_TIME : BREAK_TIME);
+    const totalTime = isWorkSession ? WORK_TIME : ((sessionCount % 4 === 0) ? LONG_BREAK_TIME : BREAK_TIME);
     return ((totalTime - timeLeft) / totalTime) * 100;
   };
 
@@ -155,7 +200,7 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
         <div className="flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${isWorkSession ? 'bg-red-500' : 'bg-green-500'}`}></div>
           <span className="text-xs text-gray-600 font-medium">
-            {isWorkSession ? '작업' : (sessionCount % 4 === 3 ? '긴 휴식' : '휴식')}
+            {isWorkSession ? '작업' : ((sessionCount % 4 === 0) ? '긴 휴식' : '휴식')}
           </span>
         </div>
 
@@ -292,7 +337,12 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
             onClick={() => {
               // 현재 세션에 새 시간 적용
               if (!isActive) {
-                setTimeLeft(isWorkSession ? customWorkTime * 60 : customBreakTime * 60);
+                if (isWorkSession) {
+                  setTimeLeft(customWorkTime * 60);
+                } else {
+                  // 휴식 세션인 경우 현재 세션 카운트에 따라 결정
+                  setTimeLeft((sessionCount % 4 === 0) ? customLongBreakTime * 60 : customBreakTime * 60);
+                }
               }
               setShowSettings(false);
             }}
