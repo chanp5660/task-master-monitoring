@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Square, RotateCcw, BarChart3, Settings } from 'lucide-react';
-import useActivityDetection from '../hooks/useActivityDetection';
 import PomodoroCompletionModal from './PomodoroCompletionModal';
-import InactivityModal from './InactivityModal';
 import OvertimeModal from './OvertimeModal';
 
 const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStatusChange }) => {
@@ -20,12 +18,9 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
   
   // 새로운 기능들을 위한 상태
   const [showCompletionModal, setShowCompletionModal] = useState(false);
-  const [showInactivityModal, setShowInactivityModal] = useState(false);
   const [showOvertimeModal, setShowOvertimeModal] = useState(false);
   const [isInOvertime, setIsInOvertime] = useState(false);
   const [overtimeStartTime, setOvertimeStartTime] = useState(null);
-  const [activityDetectionEnabled, setActivityDetectionEnabled] = useState(true);
-  const [inactivityThreshold, setInactivityThreshold] = useState(5 * 60 * 1000); // 5분
   const [overtimeReminderInterval, setOvertimeReminderInterval] = useState(5 * 60 * 1000); // 5분
   const [lastOvertimeReminder, setLastOvertimeReminder] = useState(null);
 
@@ -33,24 +28,6 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
   const BREAK_TIME = customBreakTime * 60;
   const LONG_BREAK_TIME = customLongBreakTime * 60;
 
-  // 활동 감지 훅
-  const { 
-    isUserActive, 
-    inactivityDuration, 
-    resetActivity 
-  } = useActivityDetection({
-    isActive: isActive && !isInOvertime && activityDetectionEnabled,
-    inactivityThreshold,
-    onInactivityDetected: (duration) => {
-      if (isActive && isWorkSession && !showInactivityModal) {
-        setShowInactivityModal(true);
-      }
-    },
-    onActivityResumed: () => {
-      setShowInactivityModal(false);
-    },
-    enabled: activityDetectionEnabled
-  });
 
   useEffect(() => {
     if (isActive && timeLeft > 0) {
@@ -222,45 +199,6 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
     }
   };
 
-  // 비활성 상태 핸들러
-  const handleInactivityContinue = () => {
-    setShowInactivityModal(false);
-    resetActivity();
-  };
-
-  const handleInactivityPause = () => {
-    setShowInactivityModal(false);
-    setIsActive(false);
-    
-    // 진행했던 시간 기록
-    if (sessionStartTime && isWorkSession) {
-      const actualSeconds = Math.round((Date.now() - sessionStartTime.getTime()) / 1000);
-      const actualMinutes = Math.round(actualSeconds / 60);
-      
-      const recordMinutes = Math.max(1, actualMinutes);
-      
-      const sessionData = {
-        id: Date.now().toString(),
-        taskId: currentTask?.id || null,
-        taskTitle: currentTask?.title || 'No task selected',
-        type: 'work',
-        duration: recordMinutes,
-        startTime: sessionStartTime.toISOString(),
-        endTime: new Date().toISOString(),
-        completed: false,
-        paused: true,
-        reason: 'inactivity'
-      };
-      
-      console.log('⏸️ 비활성으로 인한 일시정지 세션 데이터:', sessionData);
-      
-      if (onSessionComplete) {
-        onSessionComplete(sessionData);
-      }
-    }
-    
-    setSessionStartTime(null);
-  };
 
   // 초과시간 핸들러
   const handleOvertimeAddTime = (minutes) => {
@@ -376,9 +314,6 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
              isWorkSession ? '작업' : 
              ((sessionCount % 4 === 0) ? '긴 휴식' : '휴식')}
           </span>
-          {!isUserActive && isActive && activityDetectionEnabled && (
-            <span className="text-xs text-yellow-600 ml-1">⚠️</span>
-          )}
         </div>
 
       {/* 타이머 디스플레이 */}
@@ -502,31 +437,6 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
           <hr className="border-gray-200" />
           
           <div className="flex items-center justify-between">
-            <label className="text-xs text-gray-600">활동 감지</label>
-            <input
-              type="checkbox"
-              checked={activityDetectionEnabled}
-              onChange={(e) => setActivityDetectionEnabled(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300"
-              disabled={isActive}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-gray-600">비활성 알림 시간 (분)</label>
-            <input
-              type="number"
-              min="0.1"
-              max="30"
-              step="0.1"
-              value={inactivityThreshold / (60 * 1000)}
-              onChange={(e) => setInactivityThreshold((parseFloat(e.target.value) || 5) * 60 * 1000)}
-              className="w-16 px-2 py-1 text-xs border border-gray-300 rounded"
-              disabled={isActive || !activityDetectionEnabled}
-            />
-          </div>
-          
-          <div className="flex items-center justify-between">
             <label className="text-xs text-gray-600">초과시간 알림 간격 (분)</label>
             <input
               type="number"
@@ -546,8 +456,6 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
               setCustomWorkTime(25);
               setCustomBreakTime(5);
               setCustomLongBreakTime(15);
-              setActivityDetectionEnabled(true);
-              setInactivityThreshold(5 * 60 * 1000);
               setOvertimeReminderInterval(5 * 60 * 1000);
             }}
             className="text-xs text-gray-500 hover:text-gray-700"
@@ -588,14 +496,6 @@ const PomodoroTimer = ({ currentTask, onSessionComplete, onShowStats, onTaskStat
       isLongBreak={!isWorkSession && sessionCount % 4 === 0}
     />
 
-    {/* 비활성 감지 모달 */}
-    <InactivityModal
-      isOpen={showInactivityModal}
-      inactivityDuration={inactivityDuration}
-      onContinue={handleInactivityContinue}
-      onPause={handleInactivityPause}
-      onClose={handleInactivityContinue}
-    />
 
     {/* 초과시간 모달 */}
     <OvertimeModal
